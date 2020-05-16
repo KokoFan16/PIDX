@@ -39,19 +39,7 @@
 ## 
 ##
 
-ADD_SUBDIRECTORY(PIDX_raw_rst)
-ADD_SUBDIRECTORY(PIDX_brick_res_precision_rst)
-ADD_SUBDIRECTORY(PIDX_particles_rst)
-ADD_SUBDIRECTORY(PIDX_idx_rst)
-ADD_SUBDIRECTORY(PIDX_block_rst)
-ADD_SUBDIRECTORY(PIDX_cmp)
-ADD_SUBDIRECTORY(PIDX_hz)
-ADD_SUBDIRECTORY(PIDX_agg)
-ADD_SUBDIRECTORY(PIDX_file_io)
-ADD_SUBDIRECTORY(PIDX_header)
-
-
-FILE(GLOB PIDX_CORE_SOURCES *.h *.c)
+FILE(GLOB PIDX_BRICK_RES_PRECISION_IO_SOURCES *.h *.c)
 
 
 # ////////////////////////////////////////
@@ -61,13 +49,13 @@ FILE(GLOB PIDX_CORE_SOURCES *.h *.c)
 IF (MPI_C_FOUND)
   #MESSAGE("Configuring pidx with MPI support")
   INCLUDE_DIRECTORIES(${MPI_C_INCLUDE_PATH})
-  SET(PIDX_CORE_LINK_LIBS ${PIDX_CORE_LINK_LIBS} ${MPI_C_LIBRARIES})
+  SET(PIDX_BRICK_RES_PRECISION_IO_LINK_LIBS ${PIDX_BRICK_RES_PRECISION_IO_LINK_LIBS} ${MPI_C_LIBRARIES})
 ENDIF ()
 
 IF (ZFP_FOUND)
   #MESSAGE("Configuring pidx with ZFP support")
   INCLUDE_DIRECTORIES(${ZFP_INCLUDE_DIR})
-  SET(PIDX_CORE_LINK_LIBS ${PIDX_CORE_LINK_LIBS} ${ZFP_LIBRARIES})
+  SET(PIDX_BRICK_RES_PRECISION_IO_LINK_LIBS ${PIDX_BRICK_RES_PRECISION_IO_LINK_LIBS} ${ZFP_LIBRARIES})
 ENDIF ()
 
 
@@ -75,18 +63,6 @@ ENDIF ()
 # library
 # ////////////////////////////////////////
 
-PIDX_ADD_LIBRARY(pidx_core "${PIDX_CORE_SOURCES}")
-ADD_DEPENDENCIES(pidx_core zfp)
-ADD_DEPENDENCIES(pidx_utils zfp)
-ADD_DEPENDENCIES(pidx_data_handle zfp)
-ADD_DEPENDENCIES(pidx_header zfp)
-ADD_DEPENDENCIES(pidx_idx_rst zfp)
-ADD_DEPENDENCIES(pidx_raw_rst zfp)
-ADD_DEPENDENCIES(pidx_brick_res_precision_rst zfp)
-ADD_DEPENDENCIES(pidx_cmp zfp)
-ADD_DEPENDENCIES(pidx_hz zfp)
-ADD_DEPENDENCIES(pidx_agg zfp)
-ADD_DEPENDENCIES(pidx_file_io zfp)
-
-TARGET_LINK_LIBRARIES(pidx_core ${OS_SPECIFIC_LIBS} pidx_utils pidx_data_handle pidx_header pidx_idx_rst pidx_particles_rst pidx_raw_rst pidx_brick_res_precision_rst pidx_cmp pidx_hz pidx_agg pidx_file_io ${PIDX_CORE_LINK_LIBS})
-SET_TARGET_PROPERTIES(pidx_core PROPERTIES LINKER_LANGUAGE CXX)
+PIDX_ADD_LIBRARY(pidx_brick_res_precision_io "${PIDX_BRICK_RES_PRECISION_IO_SOURCES}")
+TARGET_LINK_LIBRARIES(pidx_brick_res_precision_io ${OS_SPECIFIC_LIBS} ${PIDX_BRICK_RES_PRECISION_IO_LINK_LIBS})
+SET_TARGET_PROPERTIES(pidx_brick_res_precision_io PROPERTIES LINKER_LANGUAGE CXX)

@@ -101,6 +101,7 @@ extern "C" {
 
 #include "./core/PIDX_header/PIDX_header_io.h"
 #include "./core/PIDX_raw_rst/PIDX_raw_rst.h"
+#include "./core/PIDX_brick_res_precision_rst/PIDX_brick_res_precisison_rst.h"
 #include "./core/PIDX_idx_rst/PIDX_idx_rst.h"
 #include "./core/PIDX_particles_rst/PIDX_particles_rst.h"
 #include "./core/PIDX_hz/PIDX_hz_encode.h"
@@ -116,10 +117,12 @@ extern "C" {
 #include "./io/idx/no_partition/idx_io.h"
 #include "./io/idx/local_partition/local_partition_idx_io.h"
 #include "./io/raw/raw_io.h"
+#include "./io/brick_res_precision/brick_res_precision_io.h"
 
 #include "./io/particle/particles_restructure.h"
 
 #include "./io/raw/raw_restructure.h"
+#include "./io/brick_res_precision/brick_res_precision_restructure.h"
 
 #include "./io/idx/restructure_box_setup.h"
 #include "./io/idx/io_setup.h"

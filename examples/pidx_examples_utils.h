@@ -63,6 +63,7 @@ static unsigned long long local_box_offset[NUM_DIMS];
 static unsigned long long local_box_size[NUM_DIMS];
 int sub_div[NUM_DIMS];
 static int time_step_count = 1;
+static unsigned long long max_file_size = 1;
 static int variable_count = 1;
 
 static PIDX_point global_size, local_offset, local_size;

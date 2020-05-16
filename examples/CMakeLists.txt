@@ -73,6 +73,9 @@ IF (PIDX_BUILD_EXAMPLES)
   PIDX_ADD_CEXECUTABLE(raw_write "grids/raw_write.c" ${EXAMPLES_UTILS})
   TARGET_LINK_LIBRARIES(raw_write ${EXAMPLES_LINK_LIBS})
 
+  PIDX_ADD_CEXECUTABLE(brick_res_precision_write "grids/brick_res_precision_write.c" ${EXAMPLES_UTILS})
+  TARGET_LINK_LIBRARIES(brick_res_precision_write ${EXAMPLES_LINK_LIBS})
+
   PIDX_ADD_CEXECUTABLE(idx_read "grids/idx_read.c" ${EXAMPLES_UTILS})
   TARGET_LINK_LIBRARIES(idx_read ${EXAMPLES_LINK_LIBS})
 

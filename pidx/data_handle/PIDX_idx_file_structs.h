@@ -111,6 +111,8 @@ struct idx_file_struct
 
 
   int cached_ts;                                    /// used for raw io, to cache meta data (1) or not (0)
+
+  unsigned long long max_file_size;
 };
 typedef struct idx_file_struct* idx_dataset;
 

@@ -1066,6 +1066,9 @@ PIDX_return_code PIDX_default_bits_per_datatype(PIDX_data_type type, int* bits);
 
 
 
+PIDX_return_code PIDX_set_max_file_size (PIDX_file file, unsigned long long max_file_size);
+
+
 ///
 /// \brief PIDX_values_per_datatype
 /// \param type

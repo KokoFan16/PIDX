@@ -74,6 +74,11 @@ struct PIDX_variable_struct
   // this is used only in raw io mode. With raw io, it is possible for a process to hold more than one super patch.
   int raw_io_restructured_super_patch_count;                ///< number of super patch after restructuring, can be greater than equal to 0
   PIDX_super_patch* raw_io_restructured_super_patch;        ///< pointer to the restructured super patches
+
+
+  // this is used only in brick_res_precision io mode. With raw io, it is possible for a process to hold more than one super patch.
+  int brick_res_precision_io_restructured_super_patch_count;                ///< number of super patch after restructuring, can be greater than equal to 0
+  PIDX_super_patch* brick_res_precision_io_restructured_super_patch;        ///< pointer to the restructured super patches
 };
 typedef struct PIDX_variable_struct* PIDX_variable;
 

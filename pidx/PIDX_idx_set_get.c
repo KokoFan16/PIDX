@@ -494,6 +494,15 @@ PIDX_return_code PIDX_get_partition_count(PIDX_file file, int* count_x, int* cou
 }
 
 
+PIDX_return_code PIDX_set_max_file_size(PIDX_file file, unsigned long long mfs)
+{
+    if (file == NULL)
+      return PIDX_err_file;
+
+    file->idx->max_file_size = mfs;
+}
+
+
 
 PIDX_return_code PIDX_set_restructuring_box(PIDX_file file, PIDX_point reg_patch_size)
 {

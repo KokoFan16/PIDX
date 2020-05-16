@@ -57,6 +57,7 @@ struct PIDX_io_descriptor
   // only one of the three is activated at a time
   PIDX_particles_rst_id particles_rst_id;           ///< Multi-patch restructuring phase id for particles
   PIDX_raw_rst_id raw_rst_id;                       ///< Multi-patch restructuring phase id for raw io
+  PIDX_brick_res_precision_rst_id brick_res_precision_rst_id;                       ///< Multi-patch restructuring phase id for brick_res_precision io
   PIDX_idx_rst_id idx_rst_id;                       ///< Multi-patch restructuring phase id for idx io
   PIDX_chunk_id chunk_id;                           ///< Block restructuring id (prepration for compression)
   PIDX_comp_id comp_id;                             ///< Compression (lossy and lossless) id

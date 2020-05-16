@@ -39,42 +39,55 @@
  * 
  */
 
+/**
+ * \file PIDX_brick_res_precision_rst.c
+ *
+ * \author Steve Petruzza
+ * \author Sidharth Kumar
+ * \date   10/09/14
+ *
+ * Implementation of all the functions
+ * declared in PIDX_brick_res_precision_rst.h
+ *
+ */
 
-#include "PIDX.h"
+#include "../../PIDX_inc.h"
 
-///
-/// \brief The PIDX_file_descriptor struct is the PIDX File descriptor
-/// (equivalent to the descriptor returned by) POSIX or any other IO framework
-///
-struct PIDX_file_descriptor
+
+PIDX_brick_res_precision_rst_id PIDX_brick_res_precision_rst_init(idx_dataset idx_meta_data, idx_comm idx_c, idx_debug idx_dbg, PIDX_restructured_grid restructured_grid, int var_start_index, int var_end_index)
 {
-  int flags;                                    ///< idx file open and create mode
+  PIDX_brick_res_precision_rst_id brick_res_precision_rst_id;
+  brick_res_precision_rst_id = (PIDX_brick_res_precision_rst_id)malloc(sizeof (*brick_res_precision_rst_id));
+  memset(brick_res_precision_rst_id, 0, sizeof (*brick_res_precision_rst_id));
 
-  // file system info
-  int fs_block_size;                            ///< file system block size which is queryed once at the beginning
+  brick_res_precision_rst_id->idx = idx_meta_data;
+  brick_res_precision_rst_id->idx_c = idx_c;
+  brick_res_precision_rst_id->idx_dbg = idx_dbg;
 
-  // flush related
-  int variable_index_tracker;                   ///< tracking upto which variable io has been done (used for flushing)
-  int local_variable_index;                     ///< starting index of variable that needs to be written out before a flush
-  int local_variable_count;                     ///< total number of variables that is written out in a flush
+  brick_res_precision_rst_id->first_index = var_start_index;
+  brick_res_precision_rst_id->last_index = var_end_index;
 
-  // IDX related
-  idx_dataset idx;                              ///< Contains all IDX related info
-  idx_blocks idx_b;                             ///< idx block related
-  idx_comm idx_c;                               ///< MPI related
-  idx_debug idx_dbg;                            ///< Flags for debugging
+  brick_res_precision_rst_id->maximum_neighbor_count = 256;
 
-  // IO phases
-  PIDX_io io;                                   ///< this descriptor contains pointers to descriptors to all other sub-phases like restructuring, HZ encoding and aggregation
+  brick_res_precision_rst_id->reg_brick_res_precision_grp_count = 0;
+  brick_res_precision_rst_id->sim_max_brick_res_precision_io_restructured_super_patch_count = 0;
 
-  // Timming
-  PIDX_time time;                               ///< For detailed time profiling of all phases
+  brick_res_precision_rst_id->restructured_grid = restructured_grid;
 
-  // for caching HZ indices
-  PIDX_metadata_cache meta_data_cache;          ///< enables caching across time steps
+  brick_res_precision_rst_id->reg_patch_size[0] = restructured_grid->patch_size[0];
+  brick_res_precision_rst_id->reg_patch_size[1] = restructured_grid->patch_size[1];
+  brick_res_precision_rst_id->reg_patch_size[2] = restructured_grid->patch_size[2];
 
-  // for restructuring and partitioning
-  PIDX_restructured_grid restructured_grid;     ///< contains information of the restructured grid
+  return (brick_res_precision_rst_id);
+}
 
 
-};
+PIDX_return_code PIDX_brick_res_precision_rst_finalize(PIDX_brick_res_precision_rst_id brick_res_precision_rst_id)
+{
+  brick_res_precision_rst_id->reg_brick_res_precision_grp_count = 0;
+  brick_res_precision_rst_id->sim_max_brick_res_precision_io_restructured_super_patch_count = 0;
+  free(brick_res_precision_rst_id);
+  brick_res_precision_rst_id = 0;
+
+  return PIDX_success;
+}

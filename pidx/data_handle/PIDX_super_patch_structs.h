@@ -56,6 +56,7 @@ typedef struct PIDX_source_patch_index_struct PIDX_source_patch_index;
 /// The super patch is a rectilinear 3D patch
 struct PIDX_super_patch_struct
 {
+  int global_id;
   uint8_t is_boundary_patch;                            ///< 1 for boundary patch 0 otherwise
 
   uint32_t patch_count;                                 ///< Number of patches in the super patch
