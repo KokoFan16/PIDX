@@ -421,8 +421,6 @@ void PIDX_wavelet_transform(unsigned char* buffer, uint64_t x, uint64_t y, uint6
 	int wavelet_level = rand()%max_wavelet_level;
 	wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
 
-//	int wavelet_level = 1;
-
 	for (int level = 1; level <= wavelet_level; level++)
 	{
 		int step = pow(2, level);
@@ -439,18 +437,31 @@ void PIDX_wavelet_transform(unsigned char* buffer, uint64_t x, uint64_t y, uint6
 
 
 // ZFP compression
-unsigned char* PIDX_compress_3D_float(float* buf, int dim_x, int dim_y, int dim_z, float param, int flag)
+unsigned char* PIDX_compress_3D_float(unsigned char* buf, int dim_x, int dim_y, int dim_z, float param, int flag, char* type_name)
 {
-    zfp_type type = zfp_type_float;
+	// ZFP data type according to PIDX data type
+    zfp_type type = zfp_type_none;
+    if (strcmp(type_name, PIDX_DType.INT32) == 0 || strcmp(type_name, PIDX_DType.INT32_GA) == 0 || strcmp(type_name, PIDX_DType.INT32_RGB) == 0)
+    	type = zfp_type_int32;
+    else if (strcmp(type_name, PIDX_DType.FLOAT32) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_RGB) == 0)
+    	type = zfp_type_float;
+    else if (strcmp(type_name, PIDX_DType.INT64) == 0 || strcmp(type_name, PIDX_DType.INT64_GA) == 0 || strcmp(type_name, PIDX_DType.INT64_RGB) == 0)
+    	type = zfp_type_int64;
+    else if (strcmp(type_name, PIDX_DType.FLOAT64) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_RGB) == 0)
+    	type = zfp_type_double;
+    else
+    	printf("ERROR: ZFP cannot handle type %s\n", type_name);
+
     zfp_field* field = zfp_field_3d(buf, type, dim_x, dim_y, dim_z);
     zfp_stream* zfp = zfp_stream_open(NULL);
+    // Two compression modes
     if (flag == 0)
         zfp_stream_set_accuracy(zfp, param);
     else if (flag == 1)
         zfp_stream_set_precision(zfp, param);
     else
     {
-        printf("ERROR: O means accuracy, and 1 means precision");
+        printf("ERROR: O means accuracy, and 1 means precision\n");
     }
     size_t max_compressed_bytes = zfp_stream_maximum_size(zfp, field);
     unsigned char* output = (unsigned char*) malloc(max_compressed_bytes);
