@@ -438,6 +438,35 @@ void PIDX_wavelet_transform(unsigned char* buffer, uint64_t x, uint64_t y, uint6
 }
 
 
+// ZFP compression
+unsigned char* PIDX_compress_3D_float(float* buf, int dim_x, int dim_y, int dim_z, float param, int flag)
+{
+    zfp_type type = zfp_type_float;
+    zfp_field* field = zfp_field_3d(buf, type, dim_x, dim_y, dim_z);
+    zfp_stream* zfp = zfp_stream_open(NULL);
+    if (flag == 0)
+        zfp_stream_set_accuracy(zfp, param);
+    else if (flag == 1)
+        zfp_stream_set_precision(zfp, param);
+    else
+    {
+        printf("ERROR: O means accuracy, and 1 means precision");
+    }
+    size_t max_compressed_bytes = zfp_stream_maximum_size(zfp, field);
+    unsigned char* output = (unsigned char*) malloc(max_compressed_bytes);
+    bitstream* stream = stream_open(&output[0], max_compressed_bytes);
+    zfp_stream_set_bit_stream(zfp, stream);
+    size_t compressed_bytes = zfp_compress(zfp, field);
+    if (compressed_bytes == 0)
+        puts("ERROR: Something wrong happened during compression\n");
+    output = (unsigned char*) realloc(output, compressed_bytes);
+    zfp_field_free(field);
+    zfp_stream_close(zfp);
+    stream_close(stream);
+    return output;
+}
+
+
 PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id)
 {
   int g = 0;
