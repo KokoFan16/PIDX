@@ -402,25 +402,8 @@ void wavelet_helper(unsigned char* buf, int step, int ng_step, int flag, int bit
 }
 
 // Wavelet transform
-void PIDX_wavelet_transform(unsigned char* buffer, uint64_t x, uint64_t y, uint64_t z, int bits, char* type_name)
+void PIDX_wavelet_transform(unsigned char* buffer, uint64_t x, uint64_t y, uint64_t z, int bits, char* type_name, int wavelet_level)
 {
-	// Calculate the max wavelet level based on the min dimensional value
-	uint64_t size[3] = {x, y, z};
-	int min = size[0];
-	for (int i = 1; i < 3; i++)
-	{
-		if (size[i] < min)
-			min = size[i];
-	}
-
-	int max_wavelet_level = log2(min);
-
-	// Get random wavelet level ( >= 1)
-	time_t t;
-	srand((unsigned) time(&t));
-	int wavelet_level = rand()%max_wavelet_level;
-	wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
-
 	for (int level = 1; level <= wavelet_level; level++)
 	{
 		int step = pow(2, level);
@@ -434,7 +417,6 @@ void PIDX_wavelet_transform(unsigned char* buffer, uint64_t x, uint64_t y, uint6
         wavelet_helper(buffer, step, ng_step, 2, bits, x, y, z, type_name);
 	}
 }
-
 
 // ZFP compression
 unsigned char* PIDX_compress_3D_float(unsigned char* buf, int dim_x, int dim_y, int dim_z, float param, int flag, char* type_name)
@@ -478,6 +460,68 @@ unsigned char* PIDX_compress_3D_float(unsigned char* buf, int dim_x, int dim_y, 
 }
 
 
+// A reorganisation hepler
+void reorg_helper(unsigned char* buf1,  unsigned char* buf2, int step, int *index, int sk, int si, int sj, int x, int y, int z)
+{
+    for (int k = sk; k < z; k+=step)
+    {
+        for (int i = si; i < y; i+=step)
+        {
+            for (int j = sj; j < x; j+=step)
+            {
+                int position = k * y * x + i * x + j;
+                buf2[*index] = buf1[position];
+                *index += 1;
+            }
+        }
+    }
+}
+
+
+//// Compressed top two levels after wavelet transfrom
+//void compressed_top_two_level(unsigned char* buf, int bits)
+//{
+//    unsigned char* level_buf = (unsigned char *)malloc(64 * bits);
+//
+//    // Read DC component
+//    int step = pow(2, wavelet_level);
+//    int index = 0;
+//    reorg_helper(buf, level_buf, step, &index, 0, 0, 0);
+//
+//    // Read each subbands for top two level
+//    for (int level = wavelet_level; level > wavelet_level-2; level--){
+//        step = pow(2, level);
+//        int n_step[2] = {0, step/2};
+//
+//        for(int k = 0; k < 2; k++){
+//            for(int i = 0; i < 2; i++){
+//                for(int j = 0; j < 2; j++){
+//                    if (j == 0 && i == 0 && k == 0)
+//                        continue;
+//                    reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j]);
+//                }
+//            }
+//        }
+//    }
+//    // ZFP compress
+//    std::vector<unsigned char> output = compress_3D_float(level_buf, 4, 4, 4, zfp_err_ratio, zfp_comp_flag);
+//    free(level_buf);
+//    // Combine buffer
+//    memcpy(&out_buf[out_size], output.data(), output.size());
+//    out_size += output.size();
+//    metadata.push_back(output.size());
+//}
+
+
+void PIDX_calculate_level_dimension(int* size, int level, int* brick_size)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        size[i] = brick_size[i]/pow(2, level);
+    }
+}
+
+
 PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id)
 {
   int g = 0;
@@ -487,6 +531,24 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
 
   PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index];
+
+  // Patch size (restructured size)
+  uint64_t patch_x = rst_id->restructured_grid->patch_size[0];
+  uint64_t patch_y = rst_id->restructured_grid->patch_size[1];
+  uint64_t patch_z = rst_id->restructured_grid->patch_size[2];
+
+  // Calculate the max wavelet level based on the min dimensional value
+  uint64_t size[3] = {patch_x, patch_y, patch_z};
+  int min = size[0];
+  for (int i = 1; i < 3; i++)
+  {
+	  if (size[i] < min)
+		  min = size[i];
+  }
+  int max_wavelet_level = log2(min);
+
+  rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
+
 
 //  printf("rank %d: number_of_bricks: %d\n", rst_id->idx_c->simulation_rank, var0->brick_res_precision_io_restructured_super_patch_count);
 
@@ -511,23 +573,24 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 
 //      printf("rank %d: %dx%dx%d\n", rst_id->idx_c->simulation_rank, out_patch->size[0], out_patch->size[1], out_patch->size[2]);
 
-
+      // Calculate the bits per sample
       int bits = 0;
       PIDX_variable var = rst_id->idx->variable[v_start];
       bits = (var->bpv/8) * var->vps;
 
+      // Get random wavelet level ( >= 1)
+      srand((unsigned) time(NULL));
+      int wavelet_level = rand()%max_wavelet_level;
+      wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
+      out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
+
       // If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
       unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
-      uint64_t patch_x = rst_id->restructured_grid->patch_size[0];
-      uint64_t patch_y = rst_id->restructured_grid->patch_size[1];
-      uint64_t patch_z = rst_id->restructured_grid->patch_size[2];
-
       uint64_t buffer_size =  out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
       uint64_t size = patch_x * patch_y * patch_z;
-
       if (buffer_size < size)
       {
-//    	  printf("%dx%dx%d\n", out_patch->size[0], out_patch->size[1], out_patch->size[2]);
+//    	  printf("%dx%dx%d\n", out_patch->size[0], out_patch->size[1], out_patch->size[2]);ß
     	  unsigned char* res_buf = calloc(size * bits, sizeof(unsigned char));
     	  int index1 = 0; int index2 = 0;
     	  for (int i = 0; i < out_patch->size[2]; i++)
@@ -540,13 +603,13 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     		  }
     	  }
     	  // pass this restructured buffer to wavelet transform
-    	  PIDX_wavelet_transform(res_buf, patch_x, patch_y, patch_z, bits, var->type_name);
+    	  PIDX_wavelet_transform(res_buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
     	  free(res_buf);
       }
       else
       {
     	  // pass original buffer to wavelet transform
-    	  PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name);
+    	  PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
       }
 
 //      float a = 0;

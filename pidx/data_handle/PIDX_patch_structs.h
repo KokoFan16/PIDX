@@ -72,6 +72,12 @@ struct PIDX_patch_struct
     unsigned char** read_particle_buffer;
   };
   uint64_t read_particle_buffer_capacity;
+
+  // ********************* Add by Ke ****************************************
+  int wavelet_level; // The wavelet level of the patch
+  int precision; // The zfp precision parameter of the patch
+  int compression_mode; // The zfp compression mode (0: accuracy, 1: precision)
+  int accuracy; // The zfp accuracy parameter
 };
 typedef struct PIDX_patch_struct* PIDX_patch;
 

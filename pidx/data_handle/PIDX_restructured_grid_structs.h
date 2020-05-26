@@ -70,6 +70,10 @@ struct PIDX_grid_struct
   uint64_t total_patch_count[PIDX_MAX_DIMENSIONS];      ///< total number of patches forming the restructured super patch
 
   Ndim_empty_patch* patch;                              ///< patch contained in the super patch
+
+  // *********************** Add by ke *******************
+
+  int max_wavelet_level; // The maximum wavelet level based on the brick size
 };
 typedef struct PIDX_grid_struct* PIDX_restructured_grid;
 
