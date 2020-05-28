@@ -464,7 +464,6 @@ struct PIDX_zfp_compress_pointer PIDX_compress_3D_float(unsigned char* buf, int 
     output.compress_size = compressed_bytes; // Data size after compression
     if (compressed_bytes == 0)
         puts("ERROR: Something wrong happened during compression\n");
-//    output.p = (unsigned char*) realloc(output.p, compressed_bytes);
     zfp_field_free(field);
     zfp_stream_close(zfp);
     stream_close(stream);
@@ -475,7 +474,6 @@ struct PIDX_zfp_compress_pointer PIDX_compress_3D_float(unsigned char* buf, int 
 // Calculate wavelet level dimensions
 void PIDX_calculate_level_dimension(uint64_t* size, uint64_t* brick_size, int level)
 {
-//	printf("%dx%dx%d\n", brick_size[0], brick_size[1], brick_size[2]);
     for (int i = 0; i < 3; i++)
     {
         size[i] = brick_size[i]/pow(2, level);
@@ -501,15 +499,18 @@ void PIDX_reorg_helper(unsigned char* buf, unsigned char* level_buf, int step, i
 }
 
 // Combine subbands of the top wavalet level when dc component is 8
-void PIDX_compress_combined_buffer(unsigned char* comp_buf, unsigned char* buf, uint64_t* comp_size, int bits, int wavelet_level, uint64_t x, uint64_t y, uint64_t z, char* type_name, int end_level)
+void PIDX_compress_top_buffer(unsigned char* comp_buf, unsigned char* buf, uint64_t* comp_size, int bits, int wavelet_level, uint64_t* patch_size, char* type_name, int end_level, int dc_size)
 {
-//	printf("x: %d, y: %d, z:%d\n", x, y, z);
-	unsigned char* level_buf = (unsigned char*) malloc(64 * bits);
+	unsigned char* level_buf = NULL;
+
+	if (dc_size < 64)
+		dc_size = 64;
+	level_buf = (unsigned char*) malloc(dc_size * bits);
 
 	// Read DC component
 	int step = pow(2, wavelet_level);
 	int index = 0;
-	PIDX_reorg_helper(buf, level_buf, step, &index, 0, 0, 0, x, y, z, bits);
+	PIDX_reorg_helper(buf, level_buf, step, &index, 0, 0, 0, patch_size[0], patch_size[1], patch_size[2], bits);
 
 	// Read each subbands for top two level
 	for (int level = wavelet_level; level > end_level; level--){
@@ -521,23 +522,27 @@ void PIDX_compress_combined_buffer(unsigned char* comp_buf, unsigned char* buf, 
 				for(int j = 0; j < 2; j++){
 					if (j == 0 && i == 0 && k == 0)
 						continue;
-					PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], x, y, z, bits);
+					PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], patch_size[0], patch_size[1], patch_size[2], bits);
 				}
 			}
 		}
 	}
 
+	uint64_t level_size[3] = {4, 4, 4};
+	if (dc_size > 64)
+		PIDX_calculate_level_dimension(level_size, patch_size, wavelet_level);
+
 	// ZFP compress (0 means the accuracy, and followed 0 means the tolerance (need to be changed))
-	struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, 4, 4, 4, 0, 0, type_name);
+	struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
 	free(level_buf);
-	// Combine buffer
-	memcpy(&comp_buf[*comp_size], output.p, output.compress_size);
+	memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
 	*comp_size += output.compress_size;
 }
 
 // ZFP compression of each subband per level
-void PIDX_compressed_subbands(unsigned char* comp_buf, unsigned char* buf, uint64_t* comp_size, int start_level, uint64_t* patch_size, int bits, char* type_name)
+void PIDX_compressed_subbands(unsigned char* comp_buf, unsigned char* buf, uint64_t* comp_size, int start_level, uint64_t* patch_size, int bits, char* type_name, int* comp_blocks_sizes)
 {
+	int count = 0;
 	uint64_t level_size[3];
 
     for (int level = start_level; level > 0; level--)
@@ -562,10 +567,10 @@ void PIDX_compressed_subbands(unsigned char* comp_buf, unsigned char* buf, uint6
                         PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], patch_size[0], patch_size[1], patch_size[2], bits);
                         // ZFP compression per subbands of each level
                         struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
-                        printf("compress_size: %d\n", output.compress_size);
-                        // Combine buffer
-                        memcpy(&comp_buf[*comp_size], output.p, output.compress_size);
+                        comp_blocks_sizes[count] = output.compress_size;
+                        memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
                         *comp_size += output.compress_size;
+                        count++;
                     }
                 }
             }
@@ -575,35 +580,42 @@ void PIDX_compressed_subbands(unsigned char* comp_buf, unsigned char* buf, uint6
 }
 
 
-void PIDX_wavelet_compression(unsigned char* comp_buf, unsigned char* buf, int bits, uint64_t dc_size, int wavelet_level, uint64_t* patch_size, char* type_name, PIDX_patch out_patch)
+void PIDX_wavelet_compression(unsigned char* comp_buf, unsigned char* buf, int bits, uint64_t dc_size, uint64_t* patch_size, char* type_name, PIDX_patch out_patch)
 {
     uint64_t comp_size = 0;
+    int comp_count = 0;
+    int wavelet_level = out_patch->wavelet_level;
 
-	if (dc_size < 64)
-    {
-  	  if (dc_size == 1)
-  	  {
-//  		  printf("wavelet_level: %d\n", wavelet_level);
-  		  PIDX_compress_combined_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size[0], patch_size[1], patch_size[2], type_name, wavelet_level-2);
-//  		  printf("1: comp_size: %d\n", comp_size);
-  		  PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-2, patch_size, bits, type_name);
-//  		  printf("2: comp_size: %d\n", comp_size);
-  	  }
-  	  if (dc_size == 8)
-  	  {
-//  		  printf("wavelet_level: %d\n", wavelet_level);
-  		  PIDX_compress_combined_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size[0], patch_size[1], patch_size[2], type_name, wavelet_level-1);
-//  		  printf("1: comp_size: %d\n", comp_size);
-  		  PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-1, patch_size, bits, type_name);
-//  		  printf("2: comp_size: %d\n", comp_size);
-  	  }
-    }
-    else
-    {
-//    	printf("wavelet_level: %d\n", wavelet_level);
-    	PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level, patch_size, bits, type_name);
-//    	printf("2: comp_size: %d\n", comp_size);
-    }
+	if (dc_size == 1)
+	{
+		comp_count = (wavelet_level-2) * 7 + 1;
+		out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
+		PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level-2, dc_size);
+		out_patch->first_compressed_size = comp_size;
+		PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-2, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
+		out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
+		out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
+	}
+	else if (dc_size == 8)
+	{
+		comp_count = (wavelet_level-1) * 7 + 1;
+		out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
+		PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level-1, dc_size);
+		out_patch->first_compressed_size = comp_size;
+		PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-1, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
+		out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
+		out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
+	}
+	else
+	{
+	    comp_count = wavelet_level * 7 + 1;
+	    out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
+		PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level, dc_size);
+		out_patch->first_compressed_size = comp_size;
+		PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
+		out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
+		out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
+	}
 }
 
 
@@ -635,6 +647,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
 
 //  printf("rank %d: number_of_bricks: %d\n", rst_id->idx_c->simulation_rank, var0->brick_res_precision_io_restructured_super_patch_count);
+  srand((unsigned) time(NULL)); // wavelet level random seed
   for (g = 0; g < var0->brick_res_precision_io_restructured_super_patch_count; ++g)
   {
     // loop through all groups
@@ -653,7 +666,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       // copy the size and offset to output
       PIDX_variable var_start = rst_id->idx->variable[v_start];
       PIDX_patch out_patch = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch;
-//      printf("rank %d: %dx%dx%d\n", rst_id->idx_c->simulation_rank, out_patch->size[0], out_patch->size[1], out_patch->size[2]);
 
       // Calculate the bits per sample
       int bits = 0;
@@ -661,10 +673,10 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       bits = (var->bpv/8) * var->vps;
 
       // Get random wavelet level ( >= 1)
-      srand((unsigned) time(NULL));
       int wavelet_level = rand()%(max_wavelet_level+1);
       wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
       out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
+//      printf("%d: %d\n", var0->brick_res_precision_io_restructured_super_patch[g]->global_id, wavelet_level);
 
       unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
       uint64_t buffer_size = out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
@@ -685,7 +697,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     			  memcpy(&res_buf[index2 * bits], &buf[index1 * bits], out_patch->size[0] * bits);
     		  }
     	  }
-    	  buf = res_buf;  // Pass res_buf pointer to buf pointer
+    	  buf = res_buf;  // Pass res_buf pointer to buffer pointer
       }
 
       // Wavelet transform
@@ -698,20 +710,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 
       // Wavelet compression
       unsigned char* comp_buf = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
-      if (var0->brick_res_precision_io_restructured_super_patch[g]->global_id == 0)
-      {
-    	  PIDX_wavelet_compression(comp_buf, buf, bits, dc_size, wavelet_level, patch_size, var->type_name, out_patch);
-      }
-      //		float a = 0;
-      //		if (var0->brick_res_precision_io_restructured_super_patch[g]->global_id == 0)
-      //		{
-      //
-      //		  for (int i = 0; i < size; i++)
-      //		  {
-      //			  memcpy(&a, &buf[i*bits], bits);
-      //			  printf("%f\n", a);
-      //		  }
-      //		}
+      PIDX_wavelet_compression(comp_buf, buf, bits, dc_size, patch_size, var->type_name, out_patch);
 
       uint64_t data_offset = 0, v1 = 0;
       for (v1 = 0; v1 < v_start; v1++)

@@ -78,6 +78,10 @@ struct PIDX_patch_struct
   int precision; // The zfp precision parameter of the patch
   int compression_mode; // The zfp compression mode (0: accuracy, 1: precision)
   int accuracy; // The zfp accuracy parameter
+  int total_compress_size; // the total compressed size per patch
+  int num_compress_blocks; // the number of blocks that are compressed per patch
+  int first_compressed_size;  // the size of first compressed block
+  int* compressed_blocks_sizes; // the sizes of blocks after compressed
 };
 typedef struct PIDX_patch_struct* PIDX_patch;
 
