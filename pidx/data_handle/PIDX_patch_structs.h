@@ -82,6 +82,7 @@ struct PIDX_patch_struct
   int num_compress_blocks; // the number of blocks that are compressed per patch
   int first_compressed_size;  // the size of first compressed block
   int* compressed_blocks_sizes; // the sizes of blocks after compressed
+  unsigned char* compressed_buffer;  // The buffer for compression
 };
 typedef struct PIDX_patch_struct* PIDX_patch;
 
