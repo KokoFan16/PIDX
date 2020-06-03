@@ -627,7 +627,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
   strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
 
-
   // Patch size (restructured size)
   uint64_t patch_x = rst_id->restructured_grid->patch_size[0];
   uint64_t patch_y = rst_id->restructured_grid->patch_size[1];
@@ -645,20 +644,17 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   int max_wavelet_level = log2(min);
   rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
 
-
-  // Initial aggregate, file size and buffer
-  int aggregate = 0;
-  int file_size = 0;
-  unsigned char* aggre_buffer = (unsigned char*) malloc(rst_id->idx->max_file_size);
-
   unsigned long long min_patch_size = pow(2, 63);
   unsigned long long max_patch_size = 0;
+  int rank = rst_id->idx_c->simulation_rank;
 
 //  printf("rank %d: number_of_bricks: %d\n", rst_id->idx_c->simulation_rank, var0->brick_res_precision_io_restructured_super_patch_count);
   srand((unsigned) time(NULL)); // wavelet level random seed
   unsigned long long process_comp_size = 0;   // The total size of a process after compression
   PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
-  for (g = 0; g < var0->brick_res_precision_io_restructured_super_patch_count; ++g)
+  int patch_count = var0->brick_res_precision_io_restructured_super_patch_count;
+  rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
+  for (g = 0; g < patch_count; ++g)
   {
     // loop through all groups
 //    char *file_name;
@@ -677,8 +673,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     {
       // copy the size and offset to output
       PIDX_variable var_start = rst_id->idx->variable[v_start];
-//      printf("rank %d: variable: %d, global_id: %d\n", rst_id->idx_c->simulation_rank, v_start, var0->brick_res_precision_io_restructured_super_patch[g]->global_id);
-
       PIDX_patch out_patch = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch;
 
       // Calculate the bits per sample
@@ -690,7 +684,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       int wavelet_level = rand()%(max_wavelet_level+1);
       wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
       out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
-//      printf("%d: %d\n", var0->brick_res_precision_io_restructured_super_patch[g]->global_id, wavelet_level);
 
       unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
       uint64_t buffer_size = out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
@@ -699,7 +692,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       // If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
       if (buffer_size < size)
       {
-//    	  printf("To be restructured: %d, %dx%dx%d\n", var0->brick_res_precision_io_restructured_super_patch[g]->global_id, out_patch->size[0], out_patch->size[1], out_patch->size[2]);
     	  res_buf = calloc(size * bits, sizeof(unsigned char));
     	  int index1 = 0; int index2 = 0;
     	  for (int i = 0; i < out_patch->size[2]; i++)
@@ -713,7 +705,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     	  }
     	  buf = res_buf;  // Pass res_buf pointer to buffer pointer
       }
-
       // Wavelet transform
       PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
 
@@ -726,10 +717,11 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
       PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
       out_patch->compressed_buffer = realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
-      process_comp_size += out_patch->total_compress_size;
-//      printf("%d, global id: %d, compressed size: %d\n", rst_id->idx_c->simulation_rank, var0->brick_res_precision_io_restructured_super_patch[g]->global_id, out_patch->total_compress_size);
 
-      vars_comp_size += out_patch->total_compress_size;
+      memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
+      process_comp_size += out_patch->total_compress_size; // total compressed size per process
+      vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
+
 
       uint64_t data_offset = 0, v1 = 0;
       for (v1 = 0; v1 < v_start; v1++)
@@ -751,82 +743,109 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     if (vars_comp_size > max_patch_size)
     	max_patch_size = vars_comp_size;
 
-//    printf("global id: %d, vars_comp_size: %d\n", var0->brick_res_precision_io_restructured_super_patch[g]->global_id, vars_comp_size);
-
 //    close(fp);
 //    free(file_name);
   }
+  rst_id->idx->procs_comp_buffer = realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
 
   // Get the maximum and minimum patch size across all the processes
-  int min_pros_patch_size = 0;
-  int max_pros_patch_size = 0;
+  unsigned long long min_pros_patch_size = 0;
+  unsigned long long max_pros_patch_size = 0;
   MPI_Allreduce(&min_patch_size, &min_pros_patch_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, MPI_COMM_WORLD);
 
-  // Required file size
-  unsigned long long max_file_size = rst_id->idx->max_file_size;
-
+  unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
   // The required file size should less than the maximum patch size
   if (max_file_size < max_pros_patch_size)
 	  return PIDX_err_io;
 
-//  if ()
+  // Calculate the number of out-files based on the required file size
+  unsigned long long total_procs_comp_size = 0;
+  MPI_Allreduce(&process_comp_size, &total_procs_comp_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+  int num_files = total_procs_comp_size/max_file_size;
+  num_files = (total_procs_comp_size % max_file_size == 0)? num_files: (num_files+1);
+
+  // Calculate the number of files per process
+  int process_count = rst_id->idx_c->simulation_nprocs;
+  int pros_num_files = num_files/process_count;
+  pros_num_files = (num_files % process_count > rank)? (pros_num_files + 1): pros_num_files;
+
+  // The required size per process
+  int required_procs_size = pros_num_files * max_file_size;
+
+  /* If the total compressed size of a process is close to the required file size, and the difference is smaller than
+   * the size of minimum patch size, so this process is treated as a aggregate to write a file.
+   */
+  int a = -1;
+  if ((required_procs_size - process_comp_size) < min_pros_patch_size)
+	  a = rank;
+
+  int aggregate_list[process_count];
+  unsigned long long procs_comp_size[process_count];
+  unsigned long long procs_req_size[process_count];
+  MPI_Allgather(&a, 1, MPI_INT, aggregate_list, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Allgather(&process_comp_size, 1, MPI_UNSIGNED_LONG_LONG, procs_comp_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+  MPI_Allgather(&required_procs_size, 1, MPI_UNSIGNED_LONG_LONG, procs_req_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+
+  // Non-aggregate ranks
+  int small_ranks[process_count];
+  int big_ranks[process_count];
+  int small_count = 0;
+  int big_count = 0;
+  for (int i = 0; i < process_count; i++)
+  {
+	  if (aggregate_list[i] == -1)
+	  {
+		  int dif = procs_comp_size[i] - procs_req_size[i];
+		  if (dif < 0)
+		  {
+			  small_ranks[small_count] = i;
+			  small_count++;
+		  }
+		  else
+		  {
+			  big_ranks[big_count] = i;
+			  big_count++;
+		  }
+	  }
+  }
 
 
-  printf("rank: %d, max: %d, min: %d\n", rst_id->idx_c->simulation_rank, max_patch_size, min_patch_size);
-//
-//  printf("min_pros_patch_size: %d\n", min_pros_patch_size);
-//  printf("max_pros_patch_size: %d\n", max_pros_patch_size);
-
-
-
-
-//  int rank = rst_id->idx_c->simulation_rank;
-
-//  int brick_counts = var0->brick_res_precision_io_restructured_super_patch_count;
-
-//  if (rank == aggregate)
+  int i = 0;
+  int j = 0;
+  unsigned long long file_size = 0;
+//  while (i < small_count && j < big_count)
 //  {
-//	  if ((file_size + process_comp_size) <= max_file_size)
-//	  {
-//		  file_size += process_comp_size;
-//	  }
-//	  else
-//	  {
-//		  for (int i = 0; i < brick_counts; i++)
-//		  {
 
-//			  printf("%d\n", rst_id->reg_brick_res_precision_grp_count);
+	  file_size = procs_comp_size[small_ranks[i]];
+	  unsigned long long counts = procs_comp_size[big_ranks[j]];
+	  unsigned long long required_size = procs_req_size[small_ranks[i]];
+	  int dif = (file_size + counts) - required_size;
+	  rst_id->idx->procs_comp_buffer = realloc(rst_id->idx->procs_comp_buffer, required_size);
 
+	  if (dif < 0)
+	  {
+		  printf("test\n");
+		  MPI_Request reqs[2];
+		  MPI_Status stats[2];
+		  if (rank == big_ranks[j])
+		  {
+			  printf("pass\n");
+			  MPI_Isend(rst_id->idx->procs_comp_buffer, counts, MPI_UNSIGNED_CHAR, small_ranks[i], 0,
+					  MPI_COMM_WORLD, &reqs[0]);
+		  }
 
-//			  int vars_comp_size = 0;
-//			  int svi = rst_id->first_index;
-//			  int evi = rst_id->last_index + 1;
-//			  for (int v_start = svi; v_start < evi; v_start = v_start + 1)
-//			  {
-//				  PIDX_variable var_start = rst_id->idx->variable[v_start];
-//				  PIDX_patch out_patch = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch;
-//				  vars_comp_size += out_patch->total_compress_size;
-//			  }
-//			  if (file_size + vars_comp_size <= max_file_size)
-//			  {
-//				  file_size += vars_comp_size;
-//			  }
-//			  else
-//			  {
-//				  aggregate += 1;
-//				  MPI_Isend()
-//			  }
-//		  }
-//	  }
+		  if (rank == small_ranks[i])
+		  {
+			  MPI_Irecv(&rst_id->idx->procs_comp_buffer[file_size], counts, MPI_UNSIGNED_CHAR, big_ranks[j],
+			                0, MPI_COMM_WORLD, &reqs[1]);
+		  }
+		  MPI_Waitall(2, reqs, stats);
+	  }
+
+	  printf("%d: success\n", rank);
 //  }
-//  printf("rank: %d, process compressed size: %d\n", rst_id->idx_c->simulation_rank, process_comp_size);
 
-
-
-
-  // You can access max file size in
-  // rst_id->idx->max_file_size
 
   free(directory_path);
 
