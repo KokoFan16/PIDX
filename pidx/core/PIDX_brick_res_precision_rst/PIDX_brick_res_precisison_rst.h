@@ -84,6 +84,8 @@ struct PIDX_brick_res_precision_rst_struct
 
   /*********** Add by Ke *************/
   unsigned long long* compressed_sizes;
+  int* patches_global_id;
+  int* patches_rank;
 };
 typedef struct PIDX_brick_res_precision_rst_struct* PIDX_brick_res_precision_rst_id;
 
