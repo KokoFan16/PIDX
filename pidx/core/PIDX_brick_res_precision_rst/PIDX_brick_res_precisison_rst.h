@@ -81,6 +81,9 @@ struct PIDX_brick_res_precision_rst_struct
   uint64_t* sim_brick_res_precision_r_offset;
 
   int maximum_neighbor_count;
+
+  /*********** Add by Ke *************/
+  unsigned long long* compressed_sizes;
 };
 typedef struct PIDX_brick_res_precision_rst_struct* PIDX_brick_res_precision_rst_id;
 

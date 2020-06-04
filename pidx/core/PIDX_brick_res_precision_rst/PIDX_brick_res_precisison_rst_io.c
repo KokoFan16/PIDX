@@ -654,6 +654,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
   int patch_count = var0->brick_res_precision_io_restructured_super_patch_count;
   rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
+  rst_id->compressed_sizes = (unsigned long long *) malloc(patch_count * sizeof(unsigned long long));
   for (g = 0; g < patch_count; ++g)
   {
     // loop through all groups
@@ -716,7 +717,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       // Wavelet compression
       out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
       PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
-      out_patch->compressed_buffer = realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
+      out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
 
       memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
       process_comp_size += out_patch->total_compress_size; // total compressed size per process
@@ -743,16 +744,19 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     if (vars_comp_size > max_patch_size)
     	max_patch_size = vars_comp_size;
 
+    rst_id->compressed_sizes[g] = vars_comp_size;
+
 //    close(fp);
 //    free(file_name);
   }
-  rst_id->idx->procs_comp_buffer = realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
 
   // Get the maximum and minimum patch size across all the processes
   unsigned long long min_pros_patch_size = 0;
   unsigned long long max_pros_patch_size = 0;
   MPI_Allreduce(&min_patch_size, &min_pros_patch_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, MPI_COMM_WORLD);
+  int max_patch_count = 0;
+  MPI_Allreduce(&patch_count, &max_patch_count, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
   unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
   // The required file size should less than the maximum patch size
@@ -772,13 +776,16 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 
   // The required size per process
   int required_procs_size = pros_num_files * max_file_size;
+  int file_size = process_comp_size; // file_size per aggregate
 
   /* If the total compressed size of a process is close to the required file size, and the difference is smaller than
    * the size of minimum patch size, so this process is treated as a aggregate to write a file.
    */
   int a = -1;
   if ((required_procs_size - process_comp_size) < min_pros_patch_size)
+  {
 	  a = rank;
+  }
 
   int aggregate_list[process_count];
   unsigned long long procs_comp_size[process_count];
@@ -809,43 +816,95 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		  }
 	  }
   }
-
+//  printf("small_count: %d, big_count: %d\n", small_count, big_count);
 
   int i = 0;
   int j = 0;
-  unsigned long long file_size = 0;
-//  while (i < small_count && j < big_count)
-//  {
+  int n = 0;
+  int complete = 0;
+  MPI_Request reqs[2];
+  MPI_Status stats[2];
 
-	  file_size = procs_comp_size[small_ranks[i]];
-	  unsigned long long counts = procs_comp_size[big_ranks[j]];
-	  unsigned long long required_size = procs_req_size[small_ranks[i]];
-	  int dif = (file_size + counts) - required_size;
-	  rst_id->idx->procs_comp_buffer = realloc(rst_id->idx->procs_comp_buffer, required_size);
+  while (i < small_count && j < big_count)
+  {
+	  int current_agg_size = procs_comp_size[small_ranks[i]];
+	  int current_sent_proc_size = procs_comp_size[big_ranks[j]];
+	  int required_agg_size = procs_req_size[small_ranks[i]];
+	  int required_sent_proc_size = procs_req_size[big_ranks[j]];
 
-	  if (dif < 0)
+	  while (j < big_count && current_agg_size < required_agg_size)
 	  {
-		  printf("test\n");
-		  MPI_Request reqs[2];
-		  MPI_Status stats[2];
-		  if (rank == big_ranks[j])
+		  if ((current_agg_size + current_sent_proc_size) < required_agg_size && required_sent_proc_size == 0 && complete == 0)
+		  {
+			  printf("test\n");
+			  MPI_Request reqs[2];
+			  MPI_Status stats[2];
+			  if (rank == big_ranks[j])
+			  {
+				  MPI_Isend(rst_id->idx->procs_comp_buffer, current_sent_proc_size, MPI_UNSIGNED_CHAR, small_ranks[i], 0, MPI_COMM_WORLD, &reqs[0]);
+				  MPI_Wait(&reqs[0], &stats[0]);
+			  }
+			  if (rank == small_ranks[i])
+			  {
+				  MPI_Irecv(&rst_id->idx->procs_comp_buffer[current_agg_size], current_sent_proc_size, MPI_UNSIGNED_CHAR, big_ranks[j], 0, MPI_COMM_WORLD, &reqs[1]);
+				  MPI_Wait(&reqs[1], &stats[1]);
+			  }
+			  current_agg_size += current_sent_proc_size;
+			  current_sent_proc_size = 0;
+			  j++;
+		  }
+		  else
 		  {
 			  printf("pass\n");
-			  MPI_Isend(rst_id->idx->procs_comp_buffer, counts, MPI_UNSIGNED_CHAR, small_ranks[i], 0,
-					  MPI_COMM_WORLD, &reqs[0]);
-		  }
+			  int current_count = patch_count;
+			  MPI_Bcast(&current_count, 1, MPI_INT, big_ranks[j], MPI_COMM_WORLD);
+			  unsigned long long* current_sizes = (unsigned long long *) malloc(max_patch_count * sizeof(unsigned long long));
+			  if (rank == big_ranks[j])
+				  memcpy(current_sizes, rst_id->compressed_sizes, patch_count * sizeof(unsigned long long));
+			  MPI_Bcast(current_sizes, current_count, MPI_UNSIGNED_LONG_LONG, big_ranks[j], MPI_COMM_WORLD);
 
-		  if (rank == small_ranks[i])
-		  {
-			  MPI_Irecv(&rst_id->idx->procs_comp_buffer[file_size], counts, MPI_UNSIGNED_CHAR, big_ranks[j],
-			                0, MPI_COMM_WORLD, &reqs[1]);
+
+			  while(n < current_count)
+			  {
+				  if (current_agg_size + current_sizes[n] < required_agg_size && current_sent_proc_size > required_sent_proc_size)
+				  {
+					  MPI_Request reqs[2];
+					  MPI_Status stats[2];
+					  if (rank == big_ranks[j])
+					  {
+						  MPI_Isend(rst_id->idx->procs_comp_buffer, current_sizes[n], MPI_UNSIGNED_CHAR, small_ranks[i], 0, MPI_COMM_WORLD, &reqs[0]);
+						  MPI_Wait(&reqs[0], &stats[0]);
+					  }
+					  if (rank == small_ranks[i])
+					  {
+						  MPI_Irecv(&rst_id->idx->procs_comp_buffer[current_agg_size], current_sizes[n], MPI_UNSIGNED_CHAR, big_ranks[j], 0, MPI_COMM_WORLD, &reqs[1]);
+						  MPI_Wait(&reqs[1], &stats[1]);
+					  }
+					  current_agg_size += current_sizes[i];
+					  current_sent_proc_size -= current_sizes[i];
+					  n++;
+				  }
+				  else
+				  {
+					  i++;
+					  complete = (n == 0)? 0: 1;
+					  break;
+				  }
+			  }
+			  j++;
 		  }
-		  MPI_Waitall(2, reqs, stats);
 	  }
 
-	  printf("%d: success\n", rank);
-//  }
+	  if (rank == small_ranks[i])
+		  file_size += current_agg_size;
 
+	  if (rank == big_ranks[j])
+		  file_size -= current_sent_proc_size;
+
+	  i++;
+  }
+
+  printf("%d: file_size %d\n", rank, file_size);
 
   free(directory_path);
 
