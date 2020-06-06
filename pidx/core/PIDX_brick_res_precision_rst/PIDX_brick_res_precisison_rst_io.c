@@ -762,7 +762,15 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     MPI_Allreduce(&process_comp_size, &total_patches_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
     // Total number of out files
     int num_files = total_patches_size/max_file_size;
-    num_files = (total_patches_size % max_file_size == 0)? num_files: (num_files+1);
+    unsigned long long remaining_size = total_patches_size % max_file_size;
+    if (remaining_size != 0)
+    {
+    	unsigned long long tolerance = max_file_size * 0.5;
+    	if (remaining_size > tolerance)
+    		num_files += 1;
+    	else
+    		max_file_size += remaining_size/num_files;
+    }
     // The total number of files should smaller than the number of processes
     int process_count = rst_id->idx_c->simulation_nprocs;
 	if (process_count < num_files)
@@ -797,11 +805,59 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 			patch_rank_array, patches_count_array, displace_array,
 			MPI_INT, MPI_COMM_WORLD);
 
+	// Aggregate count and non-aggregate count
+	int agg_count = num_files;
+	// Record which brick should send to which aggregate
+	int aggregate_record[total_patches_count];
+	memset(aggregate_record, -1, total_patches_count * sizeof(int));
+	// Traverse all the bricks and assign them to aggregates based on
+	unsigned long long agg_size[agg_count];
+	for (int i = (agg_count - 1) ; i > -1; i--)
+	{
+		agg_size[i] = 0;
+		for (int j = (total_patches_count - 1); j > -1; j--)
+		{
+			if (aggregate_record[j] == -1 && (agg_size[i] + patch_size_array[j]) < max_file_size)
+			{
+				aggregate_record[j] = i;
+				agg_size[i] += patch_size_array[j];
+			}
+		}
+	}
+	// Assign remaining bricks to the aggregate which holds the minimum size
+	for (int i = (total_patches_count - 1); i > -1; i--)
+	{
+		if (aggregate_record[i] == -1)
+		{
+			unsigned long long min_size = max_file_size;
+			int min_rank = -1;
+			for (int j = 0; j < agg_count; j++)
+			{
+				if (agg_size[j] < min_size)
+				{
+					min_size = agg_size[j];
+					min_rank = j;
+				}
+			}
+			aggregate_record[i] = min_rank;
+			agg_size[min_rank] += patch_size_array[i];
+		}
+	}
+
+//
+//	if (rank == 0)
+//	{
+//		for (int i = 0; i < agg_count; i++)
+//		{
+//			printf("%d: %llu\n", i, agg_size[i]);
+//		}
+//	}
+//
 //	if (rank == 0)
 //	{
 //		for (int i = 0; i < total_patches_count; i++)
 //		{
-//			printf("%d: %d: %llu\n", patch_rank_array[i], patch_global_id_array[i], patch_size_array[i]);
+//			printf("aggregate_record: %d\n", aggregate_record[i]);
 //		}
 //	}
 
