@@ -733,7 +733,10 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     // The required file size should larger than the maximum patch size
     unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
 	if (max_file_size < (unsigned long long)max_pros_patch_size)
-	  return PIDX_err_io;
+	{
+		printf("ERROR: The required file size should be larger than %d\n", max_pros_patch_size);
+		return PIDX_err_io;
+	}
 	// Total patches size over all the processes
     unsigned long long total_patches_size = 0;
     MPI_Allreduce(&process_comp_size, &total_patches_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
@@ -750,8 +753,12 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     }
     // The total number of files should smaller than the number of processes
     int process_count = rst_id->idx_c->simulation_nprocs;
+    unsigned long long min_file_size = total_patches_size/process_count;
 	if (process_count < num_files)
-	  return PIDX_err_io;
+	{
+		printf("ERROR: The required file size should be larger than %llu\n", min_file_size);
+		return PIDX_err_io;
+	}
 	// Total patches count
 	int total_patches_count = 0;
 	MPI_Allreduce(&patch_count, &total_patches_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
