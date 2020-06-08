@@ -112,8 +112,10 @@ struct idx_file_struct
 
   int cached_ts;                                    /// used for raw io, to cache meta data (1) or not (0)
 
+  //########### Added by Ke #################
   unsigned long long max_file_size;
   unsigned char* procs_comp_buffer;  // Total compressed buffer per process
+  int* agg_patch_array; // The patches are owned by each aggregates
 };
 typedef struct idx_file_struct* idx_dataset;
 
