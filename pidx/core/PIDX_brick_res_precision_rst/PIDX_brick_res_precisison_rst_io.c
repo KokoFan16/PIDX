@@ -644,8 +644,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   int max_wavelet_level = log2(min);
   rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
 
-  unsigned long long min_patch_size = pow(2, 63);
-  unsigned long long max_patch_size = 0;
+  int min_patch_size = INT_MAX;
+  int max_patch_size = 0;
   int rank = rst_id->idx_c->simulation_rank;
 
 //  printf("rank %d: number_of_bricks: %d\n", rst_id->idx_c->simulation_rank, var0->brick_res_precision_io_restructured_super_patch_count);
@@ -653,9 +653,10 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   unsigned long long process_comp_size = 0;   // The total size of a process after compression
   PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
   int patch_count = var0->brick_res_precision_io_restructured_super_patch_count;
-  rst_id->compressed_sizes = (unsigned long long *) malloc(patch_count * sizeof(unsigned long long));
+  rst_id->compressed_sizes = (int *) malloc(patch_count * sizeof(int));
   rst_id->patches_global_id = (int *) malloc(patch_count * sizeof(int));
   rst_id->patches_rank = (int *) malloc(patch_count * sizeof(int));
+  rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
   for (g = 0; g < patch_count; ++g)
   {
     // loop through all groups
@@ -722,6 +723,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 
       process_comp_size += out_patch->total_compress_size; // total compressed size per process
       vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
+      memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
 
 
       uint64_t data_offset = 0, v1 = 0;
@@ -750,12 +752,14 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 //    close(fp);
 //    free(file_name);
   }
+  rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
+
   	// Maximun patch size over all the patches
-    unsigned long long max_pros_patch_size = 0;
-    MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, MPI_COMM_WORLD);
+    int max_pros_patch_size = 0;
+    MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     // The required file size should larger than the maximum patch size
     unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
-	if (max_file_size < max_pros_patch_size)
+	if (max_file_size < (unsigned long long)max_pros_patch_size)
 	  return PIDX_err_io;
 	// Total patches size over all the processes
     unsigned long long total_patches_size = 0;
@@ -790,10 +794,10 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		value += patches_count_array[i];
 	}
 	// Patches compressed size array
-	unsigned long long patch_size_array[total_patches_count];
-	MPI_Allgatherv(rst_id->compressed_sizes, patch_count, MPI_UNSIGNED_LONG_LONG,
+	int patch_size_array[total_patches_count];
+	MPI_Allgatherv(rst_id->compressed_sizes, patch_count, MPI_INT,
 			patch_size_array, patches_count_array, displace_array,
-			MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+			MPI_INT, MPI_COMM_WORLD);
 	// Patches global Id array
 	int patch_global_id_array[total_patches_count];
 	MPI_Allgatherv(rst_id->patches_global_id, patch_count, MPI_INT,
@@ -844,12 +848,102 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		}
 	}
 
-//
+	unsigned long long size = agg_size[rank]; // The size held by each aggregate
+	unsigned char* aggregate_buffer = (unsigned char*) malloc(size); // aggregate buffer
+	unsigned long long local_brick_disp[patch_count]; // The displacement for each brick per process
+	int start_index = displace_array[rank]; // The index of first brick for each process
+	int disp = 0;
+	for (int i  = 0; i < patch_count; i++)
+	{
+		int id = start_index + i;
+		local_brick_disp[i] = disp;
+		disp += patch_size_array[id];
+	}
+
+	// Point-to-point communication
+//	printf("rank: %d\n", rank);
+	unsigned long long agg_cur_size = 0;
+	int tag = 0;
+	for (int i  = 0; i < total_patches_count; i++)
+	{
+//		printf("%d: id: %d, size: %d, hold by %d, and send to %d\n", i, patch_global_id_array[i], patch_size_array[i], patch_rank_array[i], aggregate_record[i]);
+		MPI_Request req[2];
+		MPI_Status stat[2];
+
+		int id = i - start_index;
+		if (patch_rank_array[i] == aggregate_record[i] && rank == patch_rank_array[i])
+		{
+			memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i]);
+			agg_cur_size += patch_size_array[i];
+//			printf("%d: %d copy from %d\n", rank, i, patch_rank_array[i]);
+		}
+		else
+		{
+			if (rank == aggregate_record[i])
+			{
+				MPI_Irecv(&aggregate_buffer[agg_cur_size], patch_size_array[i], MPI_UNSIGNED_CHAR, patch_rank_array[i],
+						tag, MPI_COMM_WORLD, &req[0]);
+				agg_cur_size += patch_size_array[i];
+				MPI_Wait(&req[0], &stat[0]);
+//				printf("%d: %d receive from %d\n", i, rank, patch_rank_array[i]);
+			}
+			if (rank == patch_rank_array[i])
+			{
+				MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i], MPI_UNSIGNED_CHAR, aggregate_record[i], tag,
+						MPI_COMM_WORLD, &req[1]);
+				MPI_Wait(&req[1], &stat[1]);
+//				printf("%d: %d sent to %d\n", i, rank, aggregate_record[i]);
+			}
+		}
+		tag++;
+	}
+
+//	printf("%d: %llu\n", rank, agg_cur_size);
+
+//	// MPI all-to-all Communication
+//	int sendcounts[process_count]; // specifying the number of elements to send to each processor
+//	memset(sendcounts, 0, process_count * sizeof(int)); // Initial sendcounts array to 0
+//	int sdispls[process_count]; // Entry j specifies the displacement (relative to sendbuf from which to take the outgoing data destined for process j
+//	memset(sdispls, 0, process_count * sizeof(int)); // Initial sdispls array to 0
+//	int recvcounts[process_count]; // specifying the maximum number of elements that can be received from each processor
+//	memset(recvcounts, 0, process_count * sizeof(int)); // Initial recvcounts array to 0
+//	int rdispls[process_count]; // Entry i specifies the displacement (relative to recvbuf at which to place the incoming data from process i
+//	memset(rdispls, 0, process_count * sizeof(int)); // Initial rdispls array to 0
+
+//	printf("rank: %d\n", rank);
+//	for (int i  = 0; i < process_count; i++)
+//	{
+//		printf("%d: %d, %d\n", i, sendcounts[i], sdispls[i]);
+//	}
+
+
+//	int start_index = displace_array[rank];
+//	int count = patches_count_array[rank];
+////	int dis_point = 0;
+////	int last_rank = aggregate_record[start_index];
+//	printf("rank %d: %d, %d\n", rank, start_index, count);
+//	for (int i = start_index; i < (start_index + count); i++) // Traverse bricks
+//	{
+//		int send_rank = aggregate_record[i];
+//		int brick_size = patch_size_array[i];
+//		printf("send_rank: %d, %d\n", send_rank, brick_size);
+//		sendcounts[send_rank] += brick_size;
+//		if (last_rank != send_rank)
+//		{
+//			dis_point += sendcounts[last_rank];
+//			last_rank = send_rank;
+//		}
+//		sdispls[send_rank] += dis_point;
+//		printf("%d: %d, %d\n", i, brick_size, aggregate_record[i]);
+////		printf("%d, %llu, %d\n", patch_global_id_array[i], patch_size_array[i], aggregate_record[i]);
+//	}
+
+
 //	if (rank == 0)
 //	{
 //		for (int i = 0; i < agg_count; i++)
 //		{
-//			printf("%d: %llu\n", i, agg_size[i]);
+//			printf("a %d: %llu\n", i, agg_size[i]);
 //		}
 //	}
 //

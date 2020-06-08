@@ -83,7 +83,7 @@ struct PIDX_brick_res_precision_rst_struct
   int maximum_neighbor_count;
 
   /*********** Add by Ke *************/
-  unsigned long long* compressed_sizes;
+  int* compressed_sizes;
   int* patches_global_id;
   int* patches_rank;
 };
