@@ -725,7 +725,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     rst_id->patches_global_id[g] = var0->brick_res_precision_io_restructured_super_patch[g]->global_id; // store the global id per brick
     rst_id->patches_rank[g] = rank;
   }
-  rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
+  	rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
 
   	// Maximun patch size over all the patches
     int max_pros_patch_size = 0;

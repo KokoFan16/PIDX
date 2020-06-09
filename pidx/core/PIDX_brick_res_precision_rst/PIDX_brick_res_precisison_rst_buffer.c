@@ -146,6 +146,12 @@ PIDX_return_code PIDX_brick_res_precision_rst_aggregate_buf_destroy(PIDX_brick_r
       free(var->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer);
   }
 
+  /***********Add by Ke*********/
+  free(rst_id->compressed_sizes);
+  free(rst_id->patches_global_id);
+  free(rst_id->patches_rank);
+  free(rst_id->idx->procs_comp_buffer);
+
   return PIDX_success;
 }
 
