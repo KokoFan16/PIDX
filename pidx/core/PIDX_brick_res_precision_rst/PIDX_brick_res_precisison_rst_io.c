@@ -710,11 +710,10 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
       PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
       out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
-
-      process_comp_size += out_patch->total_compress_size; // total compressed size per process
-      vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
       // copy all the brick buffers to one big buffer per process
       memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
+      process_comp_size += out_patch->total_compress_size; // total compressed size per process
+      vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
 
       free(res_buf);
     }
@@ -791,6 +790,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 
 	// Aggregate count and non-aggregate count
 	int agg_count = num_files;
+	rst_id->idx->agg_counts = agg_count;
 	// Record which brick should send to which aggregate
 	int aggregate_record[total_patches_count];
 	memset(aggregate_record, -1, total_patches_count * sizeof(int));
@@ -828,8 +828,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		}
 	}
 
-	unsigned long long size = agg_size[rank]; // The size held by each aggregate
-	unsigned char* aggregate_buffer = (unsigned char*) malloc(size); // aggregate buffer
+	rst_id->idx->agg_size = agg_size[rank]; // The size per aggregate
+	unsigned char* aggregate_buffer = (unsigned char*) malloc(agg_size[rank]); // aggregate buffer
 	unsigned long long local_brick_disp[patch_count]; // The displacement for each brick per process
 	int start_index = displace_array[rank]; // The index of first brick for each process
 	int disp = 0;
@@ -842,6 +842,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 
 	// Point-to-point communication
 	rst_id->idx->agg_patch_array = (int*) malloc(total_patches_count * sizeof(int));
+	rst_id->idx->agg_patches_size_array = (int*) malloc(total_patches_count * sizeof(int));
 	int owned_patch_count = 0;
 	unsigned long long agg_cur_size = 0; // Current aggregate size
 	int tag = 0; // Send and Receive tags
@@ -865,6 +866,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 				MPI_Wait(&req[0], &stat[0]);
 				agg_cur_size += patch_size_array[i];
 				rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
+				rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[i];
 				owned_patch_count++;
 			}
 			if (rank == patch_rank_array[i])
@@ -878,6 +880,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	}
 	// resize
 	rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
+	rst_id->idx->agg_owned_patch_count = owned_patch_count;
 
 	// write out files
 	if (rank < agg_count)

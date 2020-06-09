@@ -111,6 +111,14 @@ PIDX_return_code PIDX_brick_res_precision_write(PIDX_io file, int svi, int evi)
       return PIDX_err_file;
     }
 
+    // write out the metadata files
+    ret = brick_res_precision_restructure_Btree_MetaData(file, PIDX_WRITE);
+    if (ret != PIDX_success)
+    {
+      fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
+      return PIDX_err_file;
+    }
+
     // Step 4: Cleanup all buffers and ids
     ret = brick_res_precision_restructure_cleanup(file);
     if (ret != PIDX_success)

@@ -143,7 +143,11 @@ PIDX_return_code PIDX_brick_res_precision_rst_aggregate_buf_destroy(PIDX_brick_r
 
     // loop through all groups
     for (int g = 0; g < var->brick_res_precision_io_restructured_super_patch_count; ++g)
+    {
       free(var->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer);
+      free(var->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->compressed_buffer);
+      free(var->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->compressed_blocks_sizes);
+    }
   }
 
   /***********Add by Ke*********/
@@ -151,6 +155,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_aggregate_buf_destroy(PIDX_brick_r
   free(rst_id->patches_global_id);
   free(rst_id->patches_rank);
   free(rst_id->idx->procs_comp_buffer);
+  free(rst_id->idx->agg_patch_array);
+  free(rst_id->idx->agg_patches_size_array);
 
   return PIDX_success;
 }

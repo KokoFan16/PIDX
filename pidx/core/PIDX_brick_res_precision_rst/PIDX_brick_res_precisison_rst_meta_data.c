@@ -479,6 +479,41 @@ PIDX_return_code PIDX_brick_res_precision_rst_meta_data_create(PIDX_brick_res_pr
 }
 
 
+/*************************************************************
+ * Add by KE
+ * Build a B+ Tree for the global id of bricks
+ *************************************************************/
+
+#define M 3 // Max.degree
+
+typedef struct _btNode {
+	int n; /* the counts of keys */
+	int keys[M - 1]; /* array of keys */
+	struct _btNode *p[M]; /* points */
+} btNode;
+
+typedef enum OperationStatus {  /* enumerate all the return status */
+    Success,
+	Duplicate,
+	SearchFailure,
+	Insert,
+} OperationStatus;
+
+// Insert a key
+OperationStatus B_tree_insert(btNode *root, int key)
+{
+	OperationStatus status;
+	btNode *newnode;
+	return status;
+}
+
+PIDX_return_code PIDX_brick_res_precision_rst_meta_data_BTree_write(PIDX_brick_res_precision_rst_id rst_id)
+{
+	btNode *root = NULL;
+	return PIDX_success;
+}
+
+/*************************************************************/
 
 PIDX_return_code PIDX_brick_res_precision_rst_meta_data_write(PIDX_brick_res_precision_rst_id rst_id)
 {
