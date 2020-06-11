@@ -112,7 +112,7 @@ PIDX_return_code PIDX_brick_res_precision_write(PIDX_io file, int svi, int evi)
     }
 
     // write out the metadata files
-    ret = brick_res_precision_restructure_Btree_MetaData(file, PIDX_WRITE);
+    ret = brick_res_precision_restructure_MetaData(file, PIDX_WRITE);
     if (ret != PIDX_success)
     {
       fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);

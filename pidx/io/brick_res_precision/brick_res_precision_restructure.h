@@ -77,7 +77,7 @@ PIDX_return_code brick_res_precision_restructure_io(PIDX_io file, int mode);
 
 
 /// Add by KE
-PIDX_return_code brick_res_precision_restructure_Btree_MetaData(PIDX_io file, int mode);
+PIDX_return_code brick_res_precision_restructure_MetaData(PIDX_io file, int mode);
 
 
 

@@ -513,6 +513,39 @@ PIDX_return_code PIDX_brick_res_precision_rst_meta_data_BTree_write(PIDX_brick_r
 	return PIDX_success;
 }
 
+PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_write(PIDX_brick_res_precision_rst_id rst_id)
+{
+	PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index];
+	int patch_count = var0->brick_res_precision_io_restructured_super_patch_count;
+
+	for (int i = 0; i < patch_count; i++)
+	{
+		for (int v = rst_id->first_index; v <= rst_id->last_index; v++)
+		{
+			// copy the size and offset to output
+			PIDX_variable var = rst_id->idx->variable[v];
+			PIDX_patch out_patch = var->brick_res_precision_io_restructured_super_patch[i]->restructured_patch;
+			printf("var: %d, level: %d, brick: %d\n", v, out_patch->wavelet_level, var0->brick_res_precision_io_restructured_super_patch[i]->global_id);
+			printf("%d: size, %d\n", 0, out_patch->first_compressed_size);
+			for (int j = 0; j < out_patch->num_compress_blocks - 1; j++)
+			{
+			  printf("%d: size, %d\n", (j + 1), out_patch->compressed_blocks_sizes[j]);
+			}
+		}
+	}
+
+
+	//      printf("var: %d, level: %d, brick: %d\n", v_start, out_patch->wavelet_level, var0->brick_res_precision_io_restructured_super_patch[g]->global_id);
+	//      printf("%d: size, %d\n", 0, out_patch->first_compressed_size);
+	//      for (int i = 0; i < out_patch->num_compress_blocks - 1; i++)
+	//      {
+	//    	  printf("%d: size, %d\n", (i + 1), out_patch->compressed_blocks_sizes[i]);
+	//      }
+
+
+	return PIDX_success;
+}
+
 /*************************************************************/
 
 PIDX_return_code PIDX_brick_res_precision_rst_meta_data_write(PIDX_brick_res_precision_rst_id rst_id)

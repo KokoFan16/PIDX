@@ -128,7 +128,14 @@ PIDX_return_code PIDX_brick_res_precision_rst_meta_data_create(PIDX_brick_res_pr
 
 
 /// Add BY KE
+/// Create a B+ tree for quick searching
 PIDX_return_code PIDX_brick_res_precision_rst_meta_data_BTree_write(PIDX_brick_res_precision_rst_id rst_id);
+
+
+
+/// Add BY KE
+/// Write out the parameters for decompression
+PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_write(PIDX_brick_res_precision_rst_id rst_id);
 
 
 

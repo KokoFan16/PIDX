@@ -242,7 +242,7 @@ PIDX_return_code brick_res_precision_restructure_io(PIDX_io file, int mode)
 
 
 
-PIDX_return_code brick_res_precision_restructure_Btree_MetaData(PIDX_io file, int mode)
+PIDX_return_code brick_res_precision_restructure_MetaData(PIDX_io file, int mode)
 {
 	// KE: TO DO
 	/* Just Store the global id of bricks for different files.
@@ -250,11 +250,18 @@ PIDX_return_code brick_res_precision_restructure_Btree_MetaData(PIDX_io file, in
 	*  */
 	if (mode == PIDX_WRITE)
 	{
-	  if (PIDX_brick_res_precision_rst_meta_data_BTree_write(file->brick_res_precision_rst_id) != PIDX_success)
-	  {
-		  fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
-		  return PIDX_err_rst;
-	  }
+		if (PIDX_brick_res_precision_rst_comp_meta_data_write(file->brick_res_precision_rst_id) != PIDX_success)
+		{
+			  fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
+			  return PIDX_err_rst;
+		}
+
+
+		if (PIDX_brick_res_precision_rst_meta_data_BTree_write(file->brick_res_precision_rst_id) != PIDX_success)
+		  {
+			  fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
+			  return PIDX_err_rst;
+		  }
 	}
 	return PIDX_success;
 }
