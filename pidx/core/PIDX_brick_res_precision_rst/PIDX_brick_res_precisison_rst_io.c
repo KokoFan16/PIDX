@@ -621,125 +621,140 @@ void PIDX_wavelet_compression(unsigned char* comp_buf, unsigned char* buf, int b
 
 PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id)
 {
-  int g = 0;
-  char *directory_path;
-  directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
-  memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
-  strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
+	int g = 0;
+	char *directory_path;
+	directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
+	memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
+	strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
 
-  // Patch size (restructured size)
-  uint64_t patch_x = rst_id->restructured_grid->patch_size[0];
-  uint64_t patch_y = rst_id->restructured_grid->patch_size[1];
-  uint64_t patch_z = rst_id->restructured_grid->patch_size[2];
+	// Patch size (restructured size)
+	uint64_t patch_x = rst_id->restructured_grid->patch_size[0];
+	uint64_t patch_y = rst_id->restructured_grid->patch_size[1];
+	uint64_t patch_z = rst_id->restructured_grid->patch_size[2];
 
-  // Calculate the max wavelet level based on the min dimensional value
-  uint64_t patch_size[3] = {patch_x, patch_y, patch_z};
+	// Calculate the max wavelet level based on the min dimensional value
+	uint64_t patch_size[3] = {patch_x, patch_y, patch_z};
 
-  int min = patch_size[0];
-  for (int i = 1; i < 3; i++)
-  {
+	int min = patch_size[0];
+	for (int i = 1; i < 3; i++)
+	{
 	  if (patch_size[i] < min)
 		  min = patch_size[i];
-  }
-  int max_wavelet_level = log2(min); // maximum wavelet level
-  rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
+	}
+	int max_wavelet_level = log2(min); // maximum wavelet level
+	rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
 
-  int max_patch_size = 0;
-  int rank = rst_id->idx_c->simulation_rank; // The rank of processes
+	int max_patch_size = 0;
+	int rank = rst_id->idx_c->simulation_rank; // The rank of processes
 
-  srand((unsigned) time(NULL)); // wavelet level random seed
-  unsigned long long process_comp_size = 0;   // The total size of a process after compression
-  PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
-  int patch_count = var0->brick_res_precision_io_restructured_super_patch_count; // local number of bricks
-  rst_id->compressed_sizes = (int *) malloc(patch_count * sizeof(int)); // local compressed bricks size array
-  rst_id->patches_global_id = (int *) malloc(patch_count * sizeof(int));// local global id array
-  rst_id->patches_rank = (int *) malloc(patch_count * sizeof(int)); // local brick rank array (which brick belongs to which process)
-  rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
-  for (g = 0; g < patch_count; ++g)
-  {
-	int vars_comp_size = 0; // The size of a brick which contains all the variables
+	srand((unsigned) time(NULL)); // wavelet level random seed
+	unsigned long long process_comp_size = 0;   // The total size of a process after compression
+	PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
+	int patch_count = var0->brick_res_precision_io_restructured_super_patch_count; // local number of bricks
+	rst_id->compressed_sizes = (int *) malloc(patch_count * sizeof(int)); // local compressed bricks size array
+	rst_id->patches_global_id = (int *) malloc(patch_count * sizeof(int));// local global id array
+	rst_id->patches_rank = (int *) malloc(patch_count * sizeof(int)); // local brick rank array (which brick belongs to which process)
+	rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
+	for (g = 0; g < patch_count; ++g)
+	{
+		int vars_comp_size = 0; // The size of a brick which contains all the variables
 
-    int v_start = 0;
-    int svi = rst_id->first_index;
-    int evi = rst_id->last_index + 1;
-    for (v_start = svi; v_start < evi; v_start = v_start + 1)
-    {
-      // copy the size and offset to output
-      PIDX_variable var_start = rst_id->idx->variable[v_start];
-      PIDX_patch out_patch = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch;
+		int v_start = 0;
+		int svi = rst_id->first_index;
+		int evi = rst_id->last_index + 1;
+		for (v_start = svi; v_start < evi; v_start = v_start + 1)
+		{
+			// copy the size and offset to output
+			PIDX_variable var_start = rst_id->idx->variable[v_start];
+			PIDX_patch out_patch = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch;
 
-      // Calculate the bits per sample
-      int bits = 0;
-      PIDX_variable var = rst_id->idx->variable[v_start];
-      bits = (var->bpv/8) * var->vps;
+			// Calculate the bits per sample
+			int bits = 0;
+			PIDX_variable var = rst_id->idx->variable[v_start];
+			bits = (var->bpv/8) * var->vps;
 
-      // Get random wavelet level ( >= 1)
-      int wavelet_level = rand()%(max_wavelet_level+1);
-      wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
-      out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
+			// Get random wavelet level ( >= 1)
+			int wavelet_level = rand()%(max_wavelet_level+1);
+			wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
+			out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
 
-      unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
-      uint64_t buffer_size = out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
-      uint64_t size = patch_x * patch_y * patch_z;
-      unsigned char* res_buf = NULL;
-      // If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
-      if (buffer_size < size)
-      {
-    	  res_buf = calloc(size * bits, sizeof(unsigned char));
-    	  int index1 = 0; int index2 = 0;
-    	  for (int i = 0; i < out_patch->size[2]; i++)
-    	  {
-    		  for (int j = 0; j < out_patch->size[1]; j++)
-    		  {
-    			  index1 = i * out_patch->size[1] * out_patch->size[0] + j * out_patch->size[0];
-    			  index2 = i * patch_y * patch_x + j * patch_x;
-    			  memcpy(&res_buf[index2 * bits], &buf[index1 * bits], out_patch->size[0] * bits);
-    		  }
-    	  }
-    	  buf = res_buf;  // Pass res_buf pointer to buffer pointer
-      }
-      // Wavelet transform
-      PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
+			unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
+			uint64_t buffer_size = out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
+			uint64_t size = patch_x * patch_y * patch_z;
+			unsigned char* res_buf = NULL;
 
-      // Calculate the x_counts, y_counts, z_counts for dc component based on the random wavelet level
-      uint64_t dc_dimension[3];
-      PIDX_calculate_level_dimension(dc_dimension, patch_size, wavelet_level);
-      uint64_t dc_size = dc_dimension[0] * dc_dimension[1] * dc_dimension[2];
+			// Padding start time
+			if (g == 0 && v_start == svi)
+				rst_id->padding_start = MPI_Wtime();
+			// If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
+			if (buffer_size < size)
+			{
+			  res_buf = calloc(size * bits, sizeof(unsigned char));
+			  int index1 = 0; int index2 = 0;
+			  for (int i = 0; i < out_patch->size[2]; i++)
+			  {
+				  for (int j = 0; j < out_patch->size[1]; j++)
+				  {
+					  index1 = i * out_patch->size[1] * out_patch->size[0] + j * out_patch->size[0];
+					  index2 = i * patch_y * patch_x + j * patch_x;
+					  memcpy(&res_buf[index2 * bits], &buf[index1 * bits], out_patch->size[0] * bits);
+				  }
+			  }
+			  buf = res_buf;  // Pass res_buf pointer to buffer pointer
+			}
+			// Padding end time
+			if (g == (patch_count - 1) && v_start == (evi -1))
+				rst_id->padding_end = MPI_Wtime();
 
-      // Wavelet compression
-      out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
-      PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
-      out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
-      // copy all the brick buffers to one big buffer per process
-      memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
-      process_comp_size += out_patch->total_compress_size; // total compressed size per process
-      vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
+			// Wavelet transform
+			if (g == 0 && v_start == svi)
+				rst_id->wavelet_start = MPI_Wtime();  // wavelet start time
+			PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
+			// Calculate the x_counts, y_counts, z_counts for dc component based on the random wavelet level
+			uint64_t dc_dimension[3];
+			PIDX_calculate_level_dimension(dc_dimension, patch_size, wavelet_level);
+			uint64_t dc_size = dc_dimension[0] * dc_dimension[1] * dc_dimension[2];
+			if (g == (patch_count - 1) && v_start == (evi -1))
+				rst_id->wavelet_end= MPI_Wtime();  // wavelet end time
 
-      free(res_buf);
-    }
-    if (vars_comp_size > max_patch_size)
-    	max_patch_size = vars_comp_size;
+			// Wavelet compression
+			if (g == 0 && v_start == svi)
+				rst_id->zfp_compression_start = MPI_Wtime();  // compression start time
+			out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
+			PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
+			out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
+			// copy all the brick buffers to one big buffer per process
+			memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
+			process_comp_size += out_patch->total_compress_size; // total compressed size per process
+			vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
+			if (g == (patch_count - 1) && v_start == (evi -1))
+				rst_id->zfp_compreesion_end = MPI_Wtime(); // compression end time
 
-    rst_id->compressed_sizes[g] = vars_comp_size; // Store the compressed size per brick
-    rst_id->patches_global_id[g] = var0->brick_res_precision_io_restructured_super_patch[g]->global_id; // store the global id per brick
-    rst_id->patches_rank[g] = rank;
-  }
+			free(res_buf);
+		}
+		if (vars_comp_size > max_patch_size)
+			max_patch_size = vars_comp_size;
+
+		rst_id->compressed_sizes[g] = vars_comp_size; // Store the compressed size per brick
+		rst_id->patches_global_id[g] = var0->brick_res_precision_io_restructured_super_patch[g]->global_id; // store the global id per brick
+		rst_id->patches_rank[g] = rank;
+	}
   	rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
 
-    unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
+  	unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
     int required_num_brick = rst_id->idx->required_num_brick; // Required number of bricks
 	int process_count = rst_id->idx_c->simulation_nprocs; // Number of processes
 
-    // Total patches count
-	int total_patches_count = 0;
+	rst_id->sync_start = MPI_Wtime(); // All the processes should reached here before executing allreduce
+	int total_patches_count = 0; // Total patches count
 	MPI_Allreduce(&patch_count, &total_patches_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	rst_id->sync_end = MPI_Wtime();
 
+	rst_id->aggregation_start = MPI_Wtime(); // Aggregation start time
 	int num_files = 0;
-
     if (required_num_brick > 0)
     {
-    	// The number of files
-    	num_files = total_patches_count / required_num_brick;
+    	num_files = total_patches_count / required_num_brick; // The number of files
     	num_files = (total_patches_count % required_num_brick == 0)? num_files: (num_files + 1);
     	int mim_num_brick = total_patches_count / process_count; // The bottle line for the number of bricks
     	if (num_files > process_count)
@@ -748,7 +763,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
     		return PIDX_err_io;
     	}
     }
-
     if (max_file_size > 0)
     {
 		// Maximun patch size over all the patches
@@ -953,9 +967,9 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	// resize
 	rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
 	rst_id->idx->agg_owned_patch_count = owned_patch_count;
+	rst_id->aggregation_end = MPI_Wtime(); // Aggregation end time
 
-	printf("%d: %d, %llu\n", rank, owned_patch_count, agg_cur_size);
-
+	rst_id->write_io_start = MPI_Wtime(); // write IO start time
 	// write out files
 	if (agg_cur_size > 0)
 	{
@@ -977,6 +991,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		close(fp);
 		free(file_name);
 	}
+	rst_id->write_io_end = MPI_Wtime(); // write IO end time
 	free(aggregate_buffer);
 	free(directory_path);
 	return PIDX_success;

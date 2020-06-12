@@ -68,7 +68,7 @@ PIDX_return_code brick_res_precision_restructure_setup(PIDX_io file, int svi, in
   // Saving the metadata info needed for reading back the data.
   // Especially when number of cores is different from number of cores
   // used to create the dataset
-  time->rst_meta_data_io_start[cvi] = PIDX_get_time();
+//  time->rst_meta_data_io_start[cvi] = PIDX_get_time();
   //if (file->idx->cached_ts == file->idx->current_time_step)
   //if (file->idx->current_time_step == 0)
   //{
@@ -86,7 +86,7 @@ PIDX_return_code brick_res_precision_restructure_setup(PIDX_io file, int svi, in
 //    }
 
   //}
-  time->rst_meta_data_io_end[cvi] = PIDX_get_time();
+//  time->rst_meta_data_io_end[cvi] = PIDX_get_time();
 
 
   // Creating the buffers required for restructurig

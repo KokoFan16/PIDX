@@ -458,6 +458,25 @@ static void PIDX_debug_output(PIDX_file file, int svi, int evi, int io_type)
       fprintf(stderr, "Timestep %d Variables %d Time [Init + set box size + idx file + rst_io] [%f + %f + %f + %f] = %f [%f]\n", file->idx->current_time_step, (evi - svi), init_time, set_box_size,  idx_time, rst_total, (init_time + set_box_size + idx_time + rst_total), max_time);
     }
   }
+  else if (io_type == PIDX_BRICK_RES_PRECISION_IO)
+  {
+	  PIDX_brick_res_precision_rst_id rst_id = file->io->brick_res_precision_rst_id;
+	  int rank = file->idx_c->simulation_rank;
+	  double create_multi_res_pre_time = time->rst_buff_agg_io_end[0] - time->rst_buff_agg_io_start[0];
+	  double sync_time = rst_id->sync_end - rst_id->sync_start;
+	  double padding_time = rst_id->padding_end - rst_id->padding_start;
+	  double wavelet_time = rst_id->wavelet_end - rst_id->wavelet_start;
+	  double zfp_compression_time = rst_id->zfp_compreesion_end - rst_id->zfp_compression_start;
+	  double aggregation_time = rst_id->aggregation_end - rst_id->aggregation_start;
+	  double write_io_time = rst_id->write_io_end - rst_id->write_io_start;
+	  if (rank == 0)
+		  fprintf(stderr, "[RPW]: %s [%d %d %d : %d %d %d] [T %d N %d V %d]\n", file->idx->filename,
+			  (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
+			  (int)file->restructured_grid->patch_size[0], (int)file->restructured_grid->patch_size[1], (int)file->restructured_grid->patch_size[2],
+			  file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi));
+	  fprintf(stderr,"[%d]: %f [%f = [Sync %f Pad %f Wave %f Comp %f Agg %f IO %f]]\n", rank, total_time, create_multi_res_pre_time,
+			  sync_time, padding_time, wavelet_time, zfp_compression_time, aggregation_time, write_io_time);
+  }
   else
   {
     if (max_time == total_time)
