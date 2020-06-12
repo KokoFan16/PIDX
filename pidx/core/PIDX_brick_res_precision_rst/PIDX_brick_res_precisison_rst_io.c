@@ -791,6 +791,19 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	// Aggregate count and non-aggregate count
 	int agg_count = num_files;
 	rst_id->idx->agg_counts = agg_count;
+	// Decide aggregate ranks
+	int aggregate_rank[agg_count];
+	int div = process_count/agg_count;
+	int agg_index = 0;
+	for (int i = 0; i < process_count; i++)
+	{
+		if (i % div == 0)
+		{
+			aggregate_rank[agg_index] = i;
+			agg_index++;
+		}
+	}
+
 	// Record which brick should send to which aggregate
 	int aggregate_record[total_patches_count];
 	memset(aggregate_record, -1, total_patches_count * sizeof(int));
@@ -803,7 +816,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		{
 			if (aggregate_record[j] == -1 && (agg_size[i] + patch_size_array[j]) < max_file_size)
 			{
-				aggregate_record[j] = i;
+				aggregate_record[j] = aggregate_rank[i];
 				agg_size[i] += patch_size_array[j];
 			}
 		}
@@ -815,21 +828,32 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		{
 			unsigned long long min_size = max_file_size;
 			int min_rank = -1;
+			int min_index = -1;
 			for (int j = 0; j < agg_count; j++)
 			{
 				if (agg_size[j] < min_size)
 				{
 					min_size = agg_size[j];
-					min_rank = j;
+					min_rank = aggregate_rank[j];
+					min_index = j;
 				}
 			}
 			aggregate_record[i] = min_rank;
-			agg_size[min_rank] += patch_size_array[i];
+			agg_size[min_index] += patch_size_array[i];
 		}
 	}
 
-	rst_id->idx->agg_size = agg_size[rank]; // The size per aggregate
-	unsigned char* aggregate_buffer = (unsigned char*) malloc(agg_size[rank]); // aggregate buffer
+	rst_id->idx->agg_size = 0; ; // The size per aggregate
+	unsigned char* aggregate_buffer = NULL;
+	for (int i = 0; i < agg_count; i++)
+	{
+		if (rank == aggregate_rank[i])
+		{
+			aggregate_buffer = (unsigned char*) malloc(agg_size[i]); // aggregate buffer
+			rst_id->idx->agg_size = agg_size[i];
+		}
+	}
+
 	unsigned long long local_brick_disp[patch_count]; // The displacement for each brick per process
 	int start_index = displace_array[rank]; // The index of first brick for each process
 	int disp = 0;
@@ -883,7 +907,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	rst_id->idx->agg_owned_patch_count = owned_patch_count;
 
 	// write out files
-	if (rank < agg_count)
+	if (agg_cur_size > 0)
 	{
 		char *file_name;
 		file_name = malloc(PATH_MAX * sizeof(*file_name));
@@ -892,7 +916,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		sprintf(file_name, "%s/time%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
 		int fp = open(file_name, O_CREAT | O_WRONLY, 0664);
 
-		uint64_t buffer_size =  agg_size[rank];
+		uint64_t buffer_size =  agg_cur_size;
 		uint64_t write_count = pwrite(fp, aggregate_buffer, buffer_size, 0);
 		if (write_count != buffer_size)
 		{
