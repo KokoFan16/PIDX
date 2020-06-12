@@ -726,45 +726,64 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   }
   	rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
 
-
-
-  	printf("required_num_brick: %d\n", rst_id->idx->required_num_brick);
-
-  	// Maximun patch size over all the patches
-    int max_pros_patch_size = 0;
-    MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    // The required file size should larger than the maximum patch size
     unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
-	if (max_file_size < (unsigned long long)max_pros_patch_size)
-	{
-		printf("ERROR: The required file size should be larger than %d\n", max_pros_patch_size);
-		return PIDX_err_io;
-	}
-	// Total patches size over all the processes
-    unsigned long long total_patches_size = 0;
-    MPI_Allreduce(&process_comp_size, &total_patches_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    // Total number of out files
-    int num_files = total_patches_size/max_file_size;
-    unsigned long long remaining_size = total_patches_size % max_file_size;
-    if (remaining_size != 0)
-    {
-    	unsigned long long tolerance = max_file_size * 0.5;
-    	if (remaining_size > tolerance)
-    		num_files += 1;
-    	else
-    		max_file_size += remaining_size/num_files;
-    }
-    // The total number of files should smaller than the number of processes
-    int process_count = rst_id->idx_c->simulation_nprocs;
-    unsigned long long min_file_size = total_patches_size/process_count;
-	if (process_count < num_files)
-	{
-		printf("ERROR: The required file size should be larger than %llu\n", min_file_size);
-		return PIDX_err_io;
-	}
-	// Total patches count
+    int required_num_brick = rst_id->idx->required_num_brick; // Required number of bricks
+	int process_count = rst_id->idx_c->simulation_nprocs; // Number of processes
+
+    // Total patches count
 	int total_patches_count = 0;
 	MPI_Allreduce(&patch_count, &total_patches_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+	int num_files = 0;
+
+    if (required_num_brick > 0)
+    {
+    	// The number of files
+    	num_files = total_patches_count / required_num_brick;
+    	num_files = (total_patches_count % required_num_brick == 0)? num_files: (num_files + 1);
+    	int mim_num_brick = total_patches_count / process_count; // The bottle line for the number of bricks
+    	if (num_files > process_count)
+    	{
+    		printf("ERROR: The required number of bricks should be larger than %d\n", mim_num_brick);
+    		return PIDX_err_io;
+    	}
+    }
+
+    if (max_file_size > 0)
+    {
+		// Maximun patch size over all the patches
+		int max_pros_patch_size = 0;
+		MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+		// The required file size should larger than the maximum patch size
+		if (max_file_size < (unsigned long long)max_pros_patch_size)
+		{
+			printf("ERROR: The required file size should be larger than %d\n", max_pros_patch_size);
+			return PIDX_err_io;
+		}
+		// Total patches size over all the processes
+		unsigned long long total_patches_size = 0;
+		MPI_Allreduce(&process_comp_size, &total_patches_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+		// Total number of out files
+		num_files = total_patches_size/max_file_size;
+		unsigned long long remaining_size = total_patches_size % max_file_size;
+		if (remaining_size != 0)
+		{
+			unsigned long long tolerance = max_file_size * 0.5;
+			if (remaining_size > tolerance)
+				num_files += 1;
+			else
+				max_file_size += remaining_size/num_files;
+		}
+		// The total number of files should smaller than the number of processes
+		unsigned long long min_file_size = total_patches_size/process_count;
+		if (process_count < num_files)
+		{
+			printf("ERROR: The required file size should be larger than %llu\n", min_file_size);
+			return PIDX_err_io;
+		}
+    }
+	rst_id->idx->agg_counts = num_files; // The number of aggregation ranks
+
 	// Patch counts array
 	int patches_count_array[process_count];
 	MPI_Allgather(&patch_count, 1, MPI_INT, patches_count_array, 1, MPI_INT, MPI_COMM_WORLD);
@@ -792,12 +811,9 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 			patch_rank_array, patches_count_array, displace_array,
 			MPI_INT, MPI_COMM_WORLD);
 
-	// Aggregate count and non-aggregate count
-	int agg_count = num_files;
-	rst_id->idx->agg_counts = agg_count;
-	// Decide aggregate ranks
-	int aggregate_rank[agg_count];
-	int div = process_count/agg_count;
+	// Decide aggregation ranks
+	int aggregate_rank[num_files];
+	int div = process_count/num_files;
 	int agg_index = 0;
 	for (int i = 0; i < process_count; i++)
 	{
@@ -811,45 +827,72 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	// Record which brick should send to which aggregate
 	int aggregate_record[total_patches_count];
 	memset(aggregate_record, -1, total_patches_count * sizeof(int));
-	// Traverse all the bricks and assign them to aggregates based on the required file size
-	unsigned long long agg_size[agg_count];
-	for (int i = (agg_count - 1) ; i > -1; i--)
+	unsigned long long agg_size[num_files]; // The file size per aggregate
+
+	if (required_num_brick > 0)
 	{
-		agg_size[i] = 0;
-		for (int j = (total_patches_count - 1); j > -1; j--)
+		int i = 0;
+		for (i = 0 ; i < (num_files - 1); i++)
 		{
-			if (aggregate_record[j] == -1 && (agg_size[i] + patch_size_array[j]) < max_file_size)
+			agg_size[i] = 0;
+			for (int j = 0; j < required_num_brick; j++)
 			{
-				aggregate_record[j] = aggregate_rank[i];
-				agg_size[i] += patch_size_array[j];
+				int id = i*required_num_brick + j;
+				aggregate_record[id] = aggregate_rank[i];
+				agg_size[i] += patch_size_array[id];
 			}
 		}
-	}
-	// Assign remaining bricks to the aggregate which holds the minimum size
-	for (int i = (total_patches_count - 1); i > -1; i--)
-	{
-		if (aggregate_record[i] == -1)
+		int index = i*required_num_brick;
+		agg_size[i] = 0;
+		while (index < total_patches_count)
 		{
-			unsigned long long min_size = max_file_size;
-			int min_rank = -1;
-			int min_index = -1;
-			for (int j = 0; j < agg_count; j++)
-			{
-				if (agg_size[j] < min_size)
-				{
-					min_size = agg_size[j];
-					min_rank = aggregate_rank[j];
-					min_index = j;
-				}
-			}
-			aggregate_record[i] = min_rank;
-			agg_size[min_index] += patch_size_array[i];
+			aggregate_record[index] = aggregate_rank[i];
+			agg_size[i] += patch_size_array[index];
+			index++;
 		}
 	}
 
-	rst_id->idx->agg_size = 0; ; // The size per aggregate
+	if (max_file_size > 0)
+	{
+		// Traverse all the bricks and assign them to aggregates based on the required file size
+		for (int i = (num_files - 1) ; i > -1; i--)
+		{
+			agg_size[i] = 0;
+			for (int j = (total_patches_count - 1); j > -1; j--)
+			{
+				if (aggregate_record[j] == -1 && (agg_size[i] + patch_size_array[j]) < max_file_size)
+				{
+					aggregate_record[j] = aggregate_rank[i];
+					agg_size[i] += patch_size_array[j];
+				}
+			}
+		}
+		// Assign remaining bricks to the aggregate which holds the minimum size
+		for (int i = (total_patches_count - 1); i > -1; i--)
+		{
+			if (aggregate_record[i] == -1)
+			{
+				unsigned long long min_size = max_file_size;
+				int min_rank = -1;
+				int min_index = -1;
+				for (int j = 0; j < num_files; j++)
+				{
+					if (agg_size[j] < min_size)
+					{
+						min_size = agg_size[j];
+						min_rank = aggregate_rank[j];
+						min_index = j;
+					}
+				}
+				aggregate_record[i] = min_rank;
+				agg_size[min_index] += patch_size_array[i];
+			}
+		}
+	}
+
+	rst_id->idx->agg_size = 0; // The size per aggregate
 	unsigned char* aggregate_buffer = NULL;
-	for (int i = 0; i < agg_count; i++)
+	for (int i = 0; i < num_files; i++)
 	{
 		if (rank == aggregate_rank[i])
 		{
@@ -884,6 +927,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		{
 			memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i]);
 			agg_cur_size += patch_size_array[i];
+			owned_patch_count++;
 		}
 		else
 		{
@@ -910,6 +954,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
 	rst_id->idx->agg_owned_patch_count = owned_patch_count;
 
+	printf("%d: %d, %llu\n", rank, owned_patch_count, agg_cur_size);
+
 	// write out files
 	if (agg_cur_size > 0)
 	{
@@ -931,7 +977,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		close(fp);
 		free(file_name);
 	}
-
 	free(aggregate_buffer);
 	free(directory_path);
 	return PIDX_success;
