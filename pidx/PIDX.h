@@ -1069,6 +1069,11 @@ PIDX_return_code PIDX_default_bits_per_datatype(PIDX_data_type type, int* bits);
 PIDX_return_code PIDX_set_max_file_size (PIDX_file file, unsigned long long max_file_size);
 
 
+/// Add by KE
+/// The required number of bricks per aggregate
+PIDX_return_code PIDX_set_required_num_brick (PIDX_file file, int required_num_brick);
+
+
 ///
 /// \brief PIDX_values_per_datatype
 /// \param type

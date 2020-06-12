@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 //----------------------------------------------------------------
 static void parse_args(int argc, char **argv)
 {
-  char flags[] = "g:l:r:f:t:v:m:";
+  char flags[] = "g:l:r:f:t:v:m:b:";
   int one_opt = 0;
 
   while ((one_opt = getopt(argc, argv, flags)) != EOF)
@@ -233,6 +233,11 @@ static void parse_args(int argc, char **argv)
     case('m'): // maximum file size
       if (sscanf(optarg, "%lld", &max_file_size) < 0)
         terminate_with_error_msg("Invalid variable file\n%s", usage);
+      break;
+
+    case('b'): // maximum file size
+      if (sscanf(optarg, "%d", &required_num_brick) < 0)
+        terminate_with_error_msg("Invalid brick size\n%s", usage);
       break;
 
     default:
@@ -469,6 +474,9 @@ static void set_pidx_file(int ts)
   PIDX_set_io_mode(file, PIDX_BRICK_RES_PRECISION_IO);
 
   PIDX_set_max_file_size(file, max_file_size);
+
+  // ADD BY KE
+  PIDX_set_required_num_brick(file, required_num_brick);
 
   PIDX_set_restructuring_box(file, rst_box);
 

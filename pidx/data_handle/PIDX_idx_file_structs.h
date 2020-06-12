@@ -114,6 +114,7 @@ struct idx_file_struct
 
   //########### Added by KE #################
   unsigned long long max_file_size;
+  int required_num_brick; // The required number of bricks per aggregate
   unsigned char* procs_comp_buffer;  // Total compressed buffer per process
   int agg_counts; // The number of aggregates
   unsigned long long agg_size; // The total size of each aggregate

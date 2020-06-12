@@ -726,6 +726,10 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   }
   	rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
 
+
+
+  	printf("required_num_brick: %d\n", rst_id->idx->required_num_brick);
+
   	// Maximun patch size over all the patches
     int max_pros_patch_size = 0;
     MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
