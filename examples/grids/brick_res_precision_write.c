@@ -146,9 +146,6 @@ int main(int argc, char **argv)
   // Read file in parallel
   read_file_parallel();
 
-  if (rank == 0)
-	  printf("Read Success!\n");
-
 //  // Generate synthetic data
 //  create_synthetic_simulation_data();
 

@@ -78,9 +78,6 @@ PIDX_return_code PIDX_flush(PIDX_file file)
   int lvi = file->local_variable_index;
   int lvc = file->local_variable_count;
 
-  if (file->idx_c->simulation_rank == 0)
-	  printf("Start to write!\n");
-
   // currently only two modes are supported, one for write and other for read
   if (file->flags == MPI_MODE_CREATE)
   {
@@ -90,9 +87,6 @@ PIDX_return_code PIDX_flush(PIDX_file file)
       return PIDX_err_io;
     }
   }
-
-  if (file->idx_c->simulation_rank == 0)
-	  printf("Write Success!\n");
 
   else if (file->flags == PIDX_MODE_RDONLY)
   {
