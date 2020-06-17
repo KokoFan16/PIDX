@@ -647,6 +647,11 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	int max_patch_size = 0;
 	int rank = rst_id->idx_c->simulation_rank; // The rank of processes
 
+	// Event time
+	rst_id->padding_time = 0;
+	rst_id->wavelet_time = 0;
+	rst_id->zfp_compression_time = 0;
+
 	srand((unsigned) time(NULL)); // wavelet level random seed
 	unsigned long long process_comp_size = 0;   // The total size of a process after compression
 	PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
@@ -683,10 +688,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 			uint64_t size = patch_x * patch_y * patch_z;
 			unsigned char* res_buf = NULL;
 
-			// Padding start time
-			if (g == 0 && v_start == svi)
-				rst_id->padding_start = MPI_Wtime();
 			// If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
+			double padding_start = MPI_Wtime();
 			if (buffer_size < size)
 			{
 			  res_buf = calloc(size * bits, sizeof(unsigned char));
@@ -702,24 +705,21 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 			  }
 			  buf = res_buf;  // Pass res_buf pointer to buffer pointer
 			}
-			// Padding end time
-			if (g == (patch_count - 1) && v_start == (evi -1))
-				rst_id->padding_end = MPI_Wtime();
+			double padding_end = MPI_Wtime();
+			rst_id->padding_time += padding_end - padding_start;
 
 			// Wavelet transform
-			if (g == 0 && v_start == svi)
-				rst_id->wavelet_start = MPI_Wtime();  // wavelet start time
+			double wavelet_start = MPI_Wtime();  // wavelet start time
 			PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
 			// Calculate the x_counts, y_counts, z_counts for dc component based on the random wavelet level
 			uint64_t dc_dimension[3];
 			PIDX_calculate_level_dimension(dc_dimension, patch_size, wavelet_level);
 			uint64_t dc_size = dc_dimension[0] * dc_dimension[1] * dc_dimension[2];
-			if (g == (patch_count - 1) && v_start == (evi -1))
-				rst_id->wavelet_end= MPI_Wtime();  // wavelet end time
+			double wavelet_end = MPI_Wtime();
+			rst_id->wavelet_time += wavelet_end - wavelet_start;
 
 			// Wavelet compression
-			if (g == 0 && v_start == svi)
-				rst_id->zfp_compression_start = MPI_Wtime();  // compression start time
+			double zfp_compression_start = MPI_Wtime();
 			out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
 			PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
 			out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
@@ -727,9 +727,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 			memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
 			process_comp_size += out_patch->total_compress_size; // total compressed size per process
 			vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
-			if (g == (patch_count - 1) && v_start == (evi -1))
-				rst_id->zfp_compreesion_end = MPI_Wtime(); // compression end time
-
+			double zfp_compreesion_end = MPI_Wtime();
+			rst_id->zfp_compression_time += zfp_compreesion_end - zfp_compression_start;
 			free(res_buf);
 		}
 		if (vars_comp_size > max_patch_size)
@@ -748,6 +747,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	rst_id->sync_start = MPI_Wtime(); // All the processes should reached here before executing allreduce
 	int total_patches_count = 0; // Total patches count
 	MPI_Allreduce(&patch_count, &total_patches_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	rst_id->total_num_bricks = total_patches_count;
 	rst_id->sync_end = MPI_Wtime();
 
 	rst_id->aggregation_start = MPI_Wtime(); // Aggregation start time
@@ -977,7 +977,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		file_name = malloc(PATH_MAX * sizeof(*file_name));
 		memset(file_name, 0, PATH_MAX * sizeof(*file_name));
 
-		sprintf(file_name, "%s/time%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
+		sprintf(file_name, "%s/time"
+				"%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
 		int fp = open(file_name, O_CREAT | O_WRONLY, 0664);
 
 		uint64_t buffer_size =  agg_cur_size;
@@ -992,6 +993,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		free(file_name);
 	}
 	rst_id->write_io_end = MPI_Wtime(); // write IO end time
+
 	free(aggregate_buffer);
 	free(directory_path);
 	return PIDX_success;

@@ -86,17 +86,16 @@ struct PIDX_brick_res_precision_rst_struct
   int* compressed_sizes;
   int* patches_global_id;
   int* patches_rank;
+  int total_num_bricks;
+  int proc_num_bricks;
 
 
   /********** Time ******************/
+  double padding_time;
+  double wavelet_time;
+  double zfp_compression_time;
   double sync_start;
   double sync_end;
-  double padding_start;
-  double padding_end;
-  double wavelet_start;
-  double wavelet_end;
-  double zfp_compression_start;
-  double zfp_compreesion_end;
   double aggregation_start;
   double aggregation_end;
   double write_io_start;

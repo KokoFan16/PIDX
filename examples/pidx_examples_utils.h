@@ -58,9 +58,12 @@
 enum { X, Y, Z, NUM_DIMS };
 
 static int process_count = 1, rank = 0;
-static unsigned long long global_box_size[NUM_DIMS];
-static unsigned long long local_box_offset[NUM_DIMS];
-static unsigned long long local_box_size[NUM_DIMS];
+static int global_box_size[NUM_DIMS];
+static int local_box_offset[NUM_DIMS];
+static int local_box_size[NUM_DIMS];
+//static unsigned long long global_box_size[NUM_DIMS];
+//static unsigned long long local_box_offset[NUM_DIMS];
+//static unsigned long long local_box_size[NUM_DIMS];
 int sub_div[NUM_DIMS];
 static int time_step_count = 1;
 static unsigned long long max_file_size = 0;

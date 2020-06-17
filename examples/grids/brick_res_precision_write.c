@@ -122,6 +122,7 @@ static void create_synthetic_simulation_data();
 static void set_pidx_variable(int var);
 static void set_pidx_file(int ts);
 static void destroy_synthetic_simulation_data();
+static void read_file_parallel();
 
 int main(int argc, char **argv)
 {
@@ -141,42 +142,39 @@ int main(int argc, char **argv)
   // Initialize per-process local domain
   calculate_per_process_offsets();
 
-  printf("variable_count: %d, type_name: %s"
-		  "\n", variable_count, type_name[0]);
+  // Read file in parallel
+  read_file_parallel();
 
-
-  printf("%d, %dx%dx%d\n", rank, local_box_offset[0], local_box_offset[1], local_box_offset[2]);
-
-  // Generate synthetic data
+//  // Generate synthetic data
 //  create_synthetic_simulation_data();
 
   // Create variables
-//  create_pidx_point_and_access();
-//  variable = (PIDX_variable*)malloc(sizeof(*variable) * variable_count);
-//  memset(variable, 0, sizeof(*variable) * variable_count);
+  create_pidx_point_and_access();
+  variable = (PIDX_variable*)malloc(sizeof(*variable) * variable_count);
+  memset(variable, 0, sizeof(*variable) * variable_count);
 
-//  for (ts = 0; ts < time_step_count; ts++)
-//  {
-//    // Set PIDX_file for this timestep
-//    set_pidx_file(ts);
-//
-//    // Set all the PIDX_variable that we want to write
-//    for (var = 0; var < variable_count; var++)
-//      set_pidx_variable(var);
-//
-//    // PIDX_close triggers the actual write on the disk
-//    // of the variables that we just set
-////    PIDX_close(file);
-//  }
+  for (ts = 0; ts < time_step_count; ts++)
+  {
+    // Set PIDX_file for this timestep
+    set_pidx_file(ts);
+
+    // Set all the PIDX_variable that we want to write
+    for (var = 0; var < variable_count; var++)
+      set_pidx_variable(var);
+
+    // PIDX_close triggers the actual write on the disk
+    // of the variables that we just set
+    PIDX_close(file);
+  }
 
   // Close access and free memory
-//  if (PIDX_close_access(p_access) != PIDX_success)
-//    terminate_with_error_msg("PIDX_close_access");
+  if (PIDX_close_access(p_access) != PIDX_success)
+    terminate_with_error_msg("PIDX_close_access");
 
-//  free(variable);
-//  variable = 0;
+  free(variable);
+  variable = 0;
 
-//  destroy_synthetic_simulation_data();
+  destroy_synthetic_simulation_data();
 
   shutdown_mpi();
 
@@ -187,7 +185,7 @@ int main(int argc, char **argv)
 //----------------------------------------------------------------
 static void parse_args(int argc, char **argv)
 {
-  char flags[] = "g:l:i:r:f:t:v:m:b:";
+  char flags[] = "g:l:r:i:f:t:v:m:b:";
   int one_opt = 0;
 
   while ((one_opt = getopt(argc, argv, flags)) != EOF)
@@ -306,48 +304,40 @@ static int generate_vars(){
 
 
 /******************* ADD BY KE ******************************
- Read file in Parallel*/
-
-//typedef enum MPIDataType
-//{
-//	MPI_UNSIGNED_CHAR,
-//	MPI_SHORT,
-//	MPI_INT,
-//	MPI_FLOAT,
-//	MPI_DOUBLE,
-//	MPI_LONG,
-//	MPI_UNSIGNED_LONG,
-
-//} MPIDataType;
+ **************** Read file in Parallel *********************/
 
 // Create a subarray for read non contiguous data
 MPI_Datatype create_subarray()
 {
-//	MPIDataType type;
-
-//	if (strcmp(type_name[var], PIDX_DType.UINT8) == 0 || strcmp(type_name[var], PIDX_DType.UINT8_GA) == 0 || strcmp(type_name[var], PIDX_DType.UINT8_RGB) == 0)
-//	{
-//
-//	}
-
+//	printf("%d %d %d\n", global_box_size[0], global_box_size[1], global_box_size[2]);
     MPI_Datatype subarray;
-    MPI_Type_create_subarray(3, global_box_size, local_box_size, local_box_offset, MPI_ORDER_FORTRAN, MPI_FLOAT, &subarray);
+    MPI_Type_create_subarray(3, global_box_size, local_box_size, local_box_offset, MPI_ORDER_C, MPI_FLOAT, &subarray);
     MPI_Type_commit(&subarray);
     return subarray;
 }
 
 // Read file in parallel
-static void read_file_parallel(float * buf, int size)
+static void read_file_parallel()
 {
+	data = malloc(sizeof(*data) * variable_count);
+	memset(data, 0, sizeof(*data) * variable_count);
+
+	int var = 0;
+	data[var] = malloc(sizeof (*(data[var])) * local_box_size[X] * local_box_size[Y] * local_box_size[Z] * (bpv[var]/8) * vps[var]);
+
+	int size = local_box_size[X] * local_box_size[Y] * local_box_size[Z];
+
     MPI_Datatype subarray = create_subarray();
-
-
     MPI_File fh;
     MPI_Status status;
+    int count = 0;
 
-    MPI_File_open(MPI_COMM_WORLD, file_name, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+    MPI_File_open(MPI_COMM_WORLD, input_file, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
     MPI_File_set_view(fh, 0, MPI_FLOAT, subarray, "native", MPI_INFO_NULL);
-    MPI_File_read(fh, buf, size, MPI_FLOAT, &status);
+    MPI_File_read(fh, data[0], size, MPI_FLOAT, &status);
+    MPI_Get_count(&status, MPI_FLOAT, &count);
+    if (count != size)
+    	terminate_with_error_msg("ERROR: Read file failed!\n");
     MPI_File_close(&fh);
 }
 /*************************************************************/
