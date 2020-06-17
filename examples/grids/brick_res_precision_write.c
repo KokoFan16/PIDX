@@ -195,17 +195,17 @@ static void parse_args(int argc, char **argv)
     {
 
     case('g'): // global dimension
-      if ((sscanf(optarg, "%lldx%lldx%lld", &global_box_size[X], &global_box_size[Y], &global_box_size[Z]) == EOF) || (global_box_size[X] < 1 || global_box_size[Y] < 1 || global_box_size[Z] < 1))
+      if ((sscanf(optarg, "%dx%dx%d", &global_box_size[X], &global_box_size[Y], &global_box_size[Z]) == EOF) || (global_box_size[X] < 1 || global_box_size[Y] < 1 || global_box_size[Z] < 1))
         terminate_with_error_msg("Invalid global dimensions\n%s", usage);
       break;
 
     case('l'): // local dimension
-      if ((sscanf(optarg, "%lldx%lldx%lld", &local_box_size[X], &local_box_size[Y], &local_box_size[Z]) == EOF) ||(local_box_size[X] < 1 || local_box_size[Y] < 1 || local_box_size[Z] < 1))
+      if ((sscanf(optarg, "%dx%dx%d", &local_box_size[X], &local_box_size[Y], &local_box_size[Z]) == EOF) ||(local_box_size[X] < 1 || local_box_size[Y] < 1 || local_box_size[Z] < 1))
         terminate_with_error_msg("Invalid local dimension\n%s", usage);
       break;
 
     case('r'): // local dimension
-      if ((sscanf(optarg, "%lldx%lldx%lld", &rst_box_size[0], &rst_box_size[1], &rst_box_size[2]) == EOF) ||
+      if ((sscanf(optarg, "%dx%dx%d", &rst_box_size[0], &rst_box_size[1], &rst_box_size[2]) == EOF) ||
           (rst_box_size[0] < 1 || rst_box_size[1] < 1 || rst_box_size[2] < 1))
         terminate_with_error_msg("Invalid restructuring box dimension\n%s", usage);
       PIDX_set_point(rst_box, rst_box_size[X], rst_box_size[Y], rst_box_size[Z]);
