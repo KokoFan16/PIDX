@@ -96,7 +96,6 @@ PIDX_return_code PIDX_flush(PIDX_file file)
       return PIDX_err_io;
     }
   }
-
   // Output to stderr the timmings of all the io phases
   PIDX_debug_output(file, lvi, (lvi + lvc), file->idx->io_type);
 
@@ -460,9 +459,7 @@ static void PIDX_debug_output(PIDX_file file, int svi, int evi, int io_type)
   }
   else if (io_type == PIDX_BRICK_RES_PRECISION_IO)
   {
-	  MPI_Barrier(MPI_COMM_WORLD);
 	  PIDX_brick_res_precision_rst_id rst_id = file->io->brick_res_precision_rst_id;
-//	  int patch_count = rst_id->idx->variable[rst_id->first_index]->brick_res_precision_io_restructured_super_patch_count;
 	  int rank = file->idx_c->simulation_rank;
 	  double create_multi_res_pre_time = time->rst_buff_agg_io_end[0] - time->rst_buff_agg_io_start[0];
 	  double sync_time = rst_id->sync_end - rst_id->sync_start;
@@ -473,12 +470,11 @@ static void PIDX_debug_output(PIDX_file file, int svi, int evi, int io_type)
 			  (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
 			  (int)file->restructured_grid->patch_size[0], (int)file->restructured_grid->patch_size[1], (int)file->restructured_grid->patch_size[2],
 			  file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi), rst_id->total_num_bricks);
-	  fprintf(stderr,"[%d]: [%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank, create_multi_res_pre_time,
-			  rst_id->padding_time, rst_id->wavelet_time, rst_id->zfp_compression_time, sync_time, aggregation_time, write_io_time);
 
-//	  fprintf(stderr,"[%d]: [T %f B %d A %d S %llu]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
-//			  total_time, patch_count, rst_id->idx->agg_owned_patch_count, rst_id->idx->agg_size, create_multi_res_pre_time,
-//			  rst_id->padding_time, rst_id->wavelet_time, rst_id->zfp_compression_time, sync_time, aggregation_time, write_io_time);
+	  fprintf(stderr,"[%d]: [T %f B %d A %d S %llu]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
+			  total_time, file->idx->variable[0]->brick_res_precision_io_restructured_super_patch_count,
+			  file->idx->agg_owned_patch_count, file->idx->agg_size, create_multi_res_pre_time,
+			  rst_id->padding_time, rst_id->wavelet_time, rst_id->zfp_compression_time, sync_time, aggregation_time, write_io_time);
   }
   else
   {
