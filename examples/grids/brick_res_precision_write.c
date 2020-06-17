@@ -302,7 +302,6 @@ static int generate_vars(){
   return 0;
 }
 
-
 /******************* ADD BY KE ******************************
  **************** Read file in Parallel *********************/
 
@@ -322,12 +321,10 @@ static void read_file_parallel()
 	data = malloc(sizeof(*data) * variable_count);
 	memset(data, 0, sizeof(*data) * variable_count);
 
-	int var = 0;
-	data[var] = malloc(sizeof (*(data[var])) * local_box_size[X] * local_box_size[Y] * local_box_size[Z] * (bpv[var]/8) * vps[var]);
+	int size = local_box_size[X] * local_box_size[Y] * local_box_size[Z]; // Local size
 
-	int size = local_box_size[X] * local_box_size[Y] * local_box_size[Z];
-
-    MPI_Datatype subarray = create_subarray();
+	data[0] = malloc(sizeof (*(data[0])) * size * (bpv[0]/8) * vps[0]); // The first variable
+    MPI_Datatype subarray = create_subarray(); // Self-define MPI data type
     MPI_File fh;
     MPI_Status status;
     int count = 0;
@@ -339,6 +336,13 @@ static void read_file_parallel()
     if (count != size)
     	terminate_with_error_msg("ERROR: Read file failed!\n");
     MPI_File_close(&fh);
+
+    // For other variables except first one, just copy the data of first variable.
+	for (int var = 1; var < variable_count; var++)
+	{
+		data[var] = malloc(sizeof(*(data[var])) * size * (bpv[var]/8) * vps[var]);
+		memcpy(data[var], data[0], sizeof(*(data[var])) * size * (bpv[var]/8) * vps[var]);
+	}
 }
 /*************************************************************/
 
