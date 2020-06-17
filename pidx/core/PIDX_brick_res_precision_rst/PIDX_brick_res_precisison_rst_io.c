@@ -621,6 +621,9 @@ void PIDX_wavelet_compression(unsigned char* comp_buf, unsigned char* buf, int b
 
 PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id)
 {
+  	if(rank == 0)
+  		printf("TEST 0\n");
+
 	int g = 0;
 	char *directory_path;
 	directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
@@ -740,6 +743,9 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	}
   	rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
 
+  	if(rank == 0)
+  		printf("TEST 1\n");
+
   	unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
     int required_num_brick = rst_id->idx->required_num_brick; // Required number of bricks
 	int process_count = rst_id->idx_c->simulation_nprocs; // Number of processes
@@ -797,6 +803,9 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		}
     }
 	rst_id->idx->agg_counts = num_files; // The number of aggregation ranks
+
+  	if(rank == 0)
+  		printf("TEST 2\n");
 
 	// Patch counts array
 	int patches_count_array[process_count];
@@ -969,6 +978,9 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	rst_id->idx->agg_owned_patch_count = owned_patch_count;
 	rst_id->aggregation_end = MPI_Wtime(); // Aggregation end time
 
+  	if(rank == 0)
+  		printf("TEST 3\n");
+
 	rst_id->write_io_start = MPI_Wtime(); // write IO start time
 	// write out files
 	if (agg_cur_size > 0)
@@ -993,6 +1005,9 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		free(file_name);
 	}
 	rst_id->write_io_end = MPI_Wtime(); // write IO end time
+
+  	if(rank == 0)
+  		printf("TEST 4\n");
 
 	free(aggregate_buffer);
 	free(directory_path);
