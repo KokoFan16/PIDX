@@ -104,6 +104,8 @@ PIDX_return_code PIDX_brick_res_precision_write(PIDX_io file, int svi, int evi)
     }
 
     // Step 3: Write out restructured data
+    if (rank == 0)
+  	  printf("restructure_io!\n");
     ret = brick_res_precision_restructure_io(file, PIDX_WRITE);
     if (ret != PIDX_success)
     {
