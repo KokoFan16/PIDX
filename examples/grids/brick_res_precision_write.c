@@ -99,7 +99,8 @@ char output_file_template[512];
 char var_list[512];
 char output_file_name[512];
 unsigned char **data;
-static unsigned long long rst_box_size[PIDX_MAX_DIMENSIONS];
+//static unsigned long long rst_box_size[PIDX_MAX_DIMENSIONS];
+static int rst_box_size[PIDX_MAX_DIMENSIONS];
 static PIDX_point rst_box;
 
 char input_file[512];
