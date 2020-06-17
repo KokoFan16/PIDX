@@ -621,7 +621,7 @@ void PIDX_wavelet_compression(unsigned char* comp_buf, unsigned char* buf, int b
 
 PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id)
 {
-  	if(rank == 0)
+  	if(rst_id->idx_c->simulation_rank == 0)
   		printf("TEST 0\n");
 
 	int g = 0;
