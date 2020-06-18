@@ -403,605 +403,619 @@ void PIDX_wavelet_helper(unsigned char* buf, int step, int ng_step, int flag, in
 // Wavelet transform
 void PIDX_wavelet_transform(unsigned char* buffer, uint64_t x, uint64_t y, uint64_t z, int bits, char* type_name, int wavelet_level)
 {
-	for (int level = 1; level <= wavelet_level; level++)
-	{
-		int step = pow(2, level);
-		int ng_step = step/2;
+  for (int level = 1; level <= wavelet_level; level++)
+  {
+    int step = pow(2, level);
+    int ng_step = step/2;
 
-        // Calculate x-dir
-		PIDX_wavelet_helper(buffer, step, ng_step, 0, bits, x, y, z, type_name);
-        // Calculate y-dir
-		PIDX_wavelet_helper(buffer, step, ng_step, 1, bits, x, y, z, type_name);
-        // Calculate z-dir
-		PIDX_wavelet_helper(buffer, step, ng_step, 2, bits, x, y, z, type_name);
-	}
+    // Calculate x-dir
+    PIDX_wavelet_helper(buffer, step, ng_step, 0, bits, x, y, z, type_name);
+    // Calculate y-dir
+    PIDX_wavelet_helper(buffer, step, ng_step, 1, bits, x, y, z, type_name);
+    // Calculate z-dir
+    PIDX_wavelet_helper(buffer, step, ng_step, 2, bits, x, y, z, type_name);
+  }
 }
 
 
 // Structure of ZFP pointer
 struct PIDX_zfp_compress_pointer
 {
-	unsigned char *p;
-	int compress_size;
+  unsigned char *p;
+  int compress_size;
 };
 
 
 // ZFP compression
 struct PIDX_zfp_compress_pointer PIDX_compress_3D_float(unsigned char* buf, int dim_x, int dim_y, int dim_z, int flag, float param, char* type_name)
 {
-	// ZFP data type according to PIDX data type
-    zfp_type type = zfp_type_none;
-    if (strcmp(type_name, PIDX_DType.INT32) == 0 || strcmp(type_name, PIDX_DType.INT32_GA) == 0 || strcmp(type_name, PIDX_DType.INT32_RGB) == 0)
-    	type = zfp_type_int32;
-    else if (strcmp(type_name, PIDX_DType.FLOAT32) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_RGB) == 0)
-    	type = zfp_type_float;
-    else if (strcmp(type_name, PIDX_DType.INT64) == 0 || strcmp(type_name, PIDX_DType.INT64_GA) == 0 || strcmp(type_name, PIDX_DType.INT64_RGB) == 0)
-    	type = zfp_type_int64;
-    else if (strcmp(type_name, PIDX_DType.FLOAT64) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_RGB) == 0)
-    	type = zfp_type_double;
-    else
-    	printf("ERROR: ZFP cannot handle type %s\n", type_name);
+  // ZFP data type according to PIDX data type
+  zfp_type type = zfp_type_none;
+  if (strcmp(type_name, PIDX_DType.INT32) == 0 || strcmp(type_name, PIDX_DType.INT32_GA) == 0 || strcmp(type_name, PIDX_DType.INT32_RGB) == 0)
+	type = zfp_type_int32;
+  else if (strcmp(type_name, PIDX_DType.FLOAT32) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_RGB) == 0)
+	type = zfp_type_float;
+  else if (strcmp(type_name, PIDX_DType.INT64) == 0 || strcmp(type_name, PIDX_DType.INT64_GA) == 0 || strcmp(type_name, PIDX_DType.INT64_RGB) == 0)
+	type = zfp_type_int64;
+  else if (strcmp(type_name, PIDX_DType.FLOAT64) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_RGB) == 0)
+	type = zfp_type_double;
+  else
+	printf("ERROR: ZFP cannot handle type %s\n", type_name);
 
-    zfp_field* field = zfp_field_3d(buf, type, dim_x, dim_y, dim_z);
-    zfp_stream* zfp = zfp_stream_open(NULL);
-    // Two compression modes
-    if (flag == 0)
-        zfp_stream_set_accuracy(zfp, param);
-    else if (flag == 1)
-        zfp_stream_set_precision(zfp, param);
-    else
-    {
-        printf("ERROR: O means accuracy, and 1 means precision\n");
-    }
-    size_t max_compressed_bytes = zfp_stream_maximum_size(zfp, field);
-    // ZFP pointer structure
-    struct PIDX_zfp_compress_pointer output;
-    output.p = (unsigned char*) malloc(max_compressed_bytes);
-    bitstream* stream = stream_open(output.p, max_compressed_bytes);
-    zfp_stream_set_bit_stream(zfp, stream);
-    size_t compressed_bytes = zfp_compress(zfp, field);
-    output.compress_size = compressed_bytes; // Data size after compression
-    if (compressed_bytes == 0)
-        puts("ERROR: Something wrong happened during compression\n");
-    zfp_field_free(field);
-    zfp_stream_close(zfp);
-    stream_close(stream);
-    return output;
+  zfp_field* field = zfp_field_3d(buf, type, dim_x, dim_y, dim_z);
+  zfp_stream* zfp = zfp_stream_open(NULL);
+  // Two compression modes
+  if (flag == 0)
+	zfp_stream_set_accuracy(zfp, param);
+  else if (flag == 1)
+	zfp_stream_set_precision(zfp, param);
+  else
+  {
+	printf("ERROR: O means accuracy, and 1 means precision\n");
+  }
+  size_t max_compressed_bytes = zfp_stream_maximum_size(zfp, field);
+  // ZFP pointer structure
+  struct PIDX_zfp_compress_pointer output;
+  output.p = (unsigned char*) malloc(max_compressed_bytes);
+  bitstream* stream = stream_open(output.p, max_compressed_bytes);
+  zfp_stream_set_bit_stream(zfp, stream);
+  size_t compressed_bytes = zfp_compress(zfp, field);
+  output.compress_size = compressed_bytes; // Data size after compression
+  if (compressed_bytes == 0)
+	puts("ERROR: Something wrong happened during compression\n");
+  zfp_field_free(field);
+  zfp_stream_close(zfp);
+  stream_close(stream);
+  return output;
 }
 
 
 // Calculate wavelet level dimensions
 void PIDX_calculate_level_dimension(uint64_t* size, uint64_t* brick_size, int level)
 {
-    for (int i = 0; i < 3; i++)
-    {
-        size[i] = brick_size[i]/pow(2, level);
-    }
+  for (int i = 0; i < 3; i++)
+  {
+	size[i] = brick_size[i]/pow(2, level);
+  }
 }
 
 
 // A reorganisation hepler
 void PIDX_reorg_helper(unsigned char* buf, unsigned char* level_buf, int step, int *index, int sk, int si, int sj, uint64_t x, uint64_t y, uint64_t z, int bits)
 {
-    for (int k = sk; k < z; k+=step)
-    {
-        for (int i = si; i < y; i+=step)
-        {
-            for (int j = sj; j < x; j+=step)
-            {
-                int position = k * y * x + i * x + j;
-                memcpy(&level_buf[(*index) * bits], &buf[position * bits], bits);
-                *index += 1;
-            }
-        }
-    }
+  for (int k = sk; k < z; k+=step)
+  {
+	for (int i = si; i < y; i+=step)
+	{
+	  for (int j = sj; j < x; j+=step)
+	  {
+		int position = k * y * x + i * x + j;
+		memcpy(&level_buf[(*index) * bits], &buf[position * bits], bits);
+		*index += 1;
+	  }
+	}
+  }
 }
 
 // Combine subbands of the top wavalet level when dc component is 8
 void PIDX_compress_top_buffer(unsigned char* comp_buf, unsigned char* buf, uint64_t* comp_size, int bits, int wavelet_level, uint64_t* patch_size, char* type_name, int end_level, int dc_size)
 {
-	unsigned char* level_buf = NULL;
+  unsigned char* level_buf = NULL;
 
-	if (dc_size < 64)
-		dc_size = 64;
-	level_buf = (unsigned char*) malloc(dc_size * bits);
+  if (dc_size < 64)
+	dc_size = 64;
+  level_buf = (unsigned char*) malloc(dc_size * bits);
 
-	// Read DC component
-	int step = pow(2, wavelet_level);
-	int index = 0;
-	PIDX_reorg_helper(buf, level_buf, step, &index, 0, 0, 0, patch_size[0], patch_size[1], patch_size[2], bits);
+  // Read DC component
+  int step = pow(2, wavelet_level);
+  int index = 0;
+  PIDX_reorg_helper(buf, level_buf, step, &index, 0, 0, 0, patch_size[0], patch_size[1], patch_size[2], bits);
 
-	// Read each subbands for top two level
-	for (int level = wavelet_level; level > end_level; level--){
-		step = pow(2, level);
-		int n_step[2] = {0, step/2};
-
-		for(int k = 0; k < 2; k++){
-			for(int i = 0; i < 2; i++){
-				for(int j = 0; j < 2; j++){
-					if (j == 0 && i == 0 && k == 0)
-						continue;
-					PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], patch_size[0], patch_size[1], patch_size[2], bits);
-				}
-			}
+  // Read each subbands for top two level
+  for (int level = wavelet_level; level > end_level; level--)
+  {
+	step = pow(2, level);
+	int n_step[2] = {0, step/2};
+	for(int k = 0; k < 2; k++)
+	{
+	  for(int i = 0; i < 2; i++)
+	  {
+		for(int j = 0; j < 2; j++)
+		{
+		  if (j == 0 && i == 0 && k == 0)
+			continue;
+		  PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], patch_size[0], patch_size[1], patch_size[2], bits);
 		}
+	  }
 	}
+  }
 
-	uint64_t level_size[3] = {4, 4, 4};
-	if (dc_size > 64)
-		PIDX_calculate_level_dimension(level_size, patch_size, wavelet_level);
+  uint64_t level_size[3] = {4, 4, 4};
+  if (dc_size > 64)
+	PIDX_calculate_level_dimension(level_size, patch_size, wavelet_level);
 
-	// ZFP compress (0 means the accuracy, and followed 0 means the tolerance (need to be changed))
-	struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
-	free(level_buf);
-	memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
-	*comp_size += output.compress_size;
+  // ZFP compress (0 means the accuracy, and followed 0 means the tolerance (need to be changed))
+  struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
+  free(level_buf);
+  memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
+  *comp_size += output.compress_size;
 }
 
 // ZFP compression of each subband per level
 void PIDX_compressed_subbands(unsigned char* comp_buf, unsigned char* buf, uint64_t* comp_size, int start_level, uint64_t* patch_size, int bits, char* type_name, int* comp_blocks_sizes)
 {
-	int count = 0;
-	uint64_t level_size[3];
+  int count = 0;
+  uint64_t level_size[3];
 
-    for (int level = start_level; level > 0; level--)
-    {
-    	// Calculate dimention per level
-    	PIDX_calculate_level_dimension(level_size, patch_size, level);
-        int size = level_size[0] * level_size[1] * level_size[2];
-        unsigned char* level_buf = (unsigned char *)malloc(size * bits);
+  for (int level = start_level; level > 0; level--)
+  {
+	// Calculate dimention per level
+	PIDX_calculate_level_dimension(level_size, patch_size, level);
+	int size = level_size[0] * level_size[1] * level_size[2];
+	unsigned char* level_buf = (unsigned char *)malloc(size * bits);
 
-        int step = pow(2, level);
-        int n_step[2] = {0, step/2};
+	int step = pow(2, level);
+	int n_step[2] = {0, step/2};
 
-        // Define the start points for HHL, HLL, HLH ...
-        for(int k = 0; k < 2; k++){
-            for(int i = 0; i < 2; i++){
-                for(int j = 0; j < 2; j++){
-                    if (j == 0 && i == 0 && k == 0)
-                        continue;
-                    else{
-                        int index = 0;
-                        // Read subbands per level
-                        PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], patch_size[0], patch_size[1], patch_size[2], bits);
-                        // ZFP compression per subbands of each level
-                        struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
-                        comp_blocks_sizes[count] = output.compress_size;
-                        memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
-                        *comp_size += output.compress_size;
-                        count++;
-                    }
-                }
-            }
-        }
-        free(level_buf);
-    }
+	// Define the start points for HHL, HLL, HLH ...
+	for(int k = 0; k < 2; k++)
+	{
+	  for(int i = 0; i < 2; i++)
+	  {
+		for(int j = 0; j < 2; j++)
+		{
+		  if (j == 0 && i == 0 && k == 0)
+			continue;
+		  else
+		  {
+		    int index = 0;
+		    // Read subbands per level
+		    PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], patch_size[0], patch_size[1], patch_size[2], bits);
+		    // ZFP compression per subbands of each level
+		    struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
+		    comp_blocks_sizes[count] = output.compress_size;
+		    memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
+		    *comp_size += output.compress_size;
+		    count++;
+		  }
+		}
+	  }
+	}
+	free(level_buf);
+  }
 }
 
 
 void PIDX_wavelet_compression(unsigned char* comp_buf, unsigned char* buf, int bits, uint64_t dc_size, uint64_t* patch_size, char* type_name, PIDX_patch out_patch)
 {
-    uint64_t comp_size = 0;
-    int comp_count = 0;
-    int wavelet_level = out_patch->wavelet_level;
+  uint64_t comp_size = 0;
+  int comp_count = 0;
+  int wavelet_level = out_patch->wavelet_level;
 
-	if (dc_size == 1)
-	{
-		comp_count = (wavelet_level-2) * 7 + 1;
-		out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
-		PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level-2, dc_size);
-		out_patch->first_compressed_size = comp_size;
-		PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-2, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
-		out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
-		out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
-	}
-	else if (dc_size == 8)
-	{
-		comp_count = (wavelet_level-1) * 7 + 1;
-		out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
-		PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level-1, dc_size);
-		out_patch->first_compressed_size = comp_size;
-		PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-1, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
-		out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
-		out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
-	}
-	else
-	{
-	    comp_count = wavelet_level * 7 + 1;
-	    out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
-		PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level, dc_size);
-		out_patch->first_compressed_size = comp_size;
-		PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
-		out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
-		out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
-	}
+  if (dc_size == 1)
+  {
+	comp_count = (wavelet_level-2) * 7 + 1;
+	out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
+	PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level-2, dc_size);
+	out_patch->first_compressed_size = comp_size;
+	PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-2, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
+	out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
+	out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
+  }
+  else if (dc_size == 8)
+  {
+	comp_count = (wavelet_level-1) * 7 + 1;
+	out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
+	PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level-1, dc_size);
+	out_patch->first_compressed_size = comp_size;
+	PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level-1, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
+	out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
+	out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
+  }
+  else
+  {
+	comp_count = wavelet_level * 7 + 1;
+	out_patch->compressed_blocks_sizes = (int*) malloc((comp_count - 1) * sizeof(int));
+	PIDX_compress_top_buffer(comp_buf, buf, &comp_size, bits, wavelet_level, patch_size, type_name, wavelet_level, dc_size);
+	out_patch->first_compressed_size = comp_size;
+	PIDX_compressed_subbands(comp_buf, buf, &comp_size, wavelet_level, patch_size, bits, type_name, out_patch->compressed_blocks_sizes);
+	out_patch->total_compress_size = comp_size; // Store the total compressed size for each brick
+	out_patch->num_compress_blocks = comp_count; // Store the number of compressed blocks for each brick
+  }
 }
 
 
 PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id)
 {
-	int g = 0;
-	char *directory_path;
-	directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
-	memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
-	strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
+  int g = 0;
+  char *directory_path;
+  directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
+  memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
+  strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
 
-	// Patch size (restructured size)
-	uint64_t patch_x = rst_id->restructured_grid->patch_size[0];
-	uint64_t patch_y = rst_id->restructured_grid->patch_size[1];
-	uint64_t patch_z = rst_id->restructured_grid->patch_size[2];
+  // Patch size (restructured size)
+  uint64_t patch_x = rst_id->restructured_grid->patch_size[0];
+  uint64_t patch_y = rst_id->restructured_grid->patch_size[1];
+  uint64_t patch_z = rst_id->restructured_grid->patch_size[2];
 
-	// Calculate the max wavelet level based on the min dimensional value
-	uint64_t patch_size[3] = {patch_x, patch_y, patch_z};
+  // Calculate the max wavelet level based on the min dimensional value
+  uint64_t patch_size[3] = {patch_x, patch_y, patch_z};
 
-	int min = patch_size[0];
-	for (int i = 1; i < 3; i++)
-	{
-	  if (patch_size[i] < min)
-		  min = patch_size[i];
-	}
-	int max_wavelet_level = log2(min); // maximum wavelet level
-	rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
+  int min = patch_size[0];
+  for (int i = 1; i < 3; i++)
+  {
+	if (patch_size[i] < min)
+	  min = patch_size[i];
+  }
+  int max_wavelet_level = log2(min); // maximum wavelet level
+  rst_id->restructured_grid->max_wavelet_level = max_wavelet_level; // Store the parameter into restructured_grid structure
 
-	int max_patch_size = 0;
-	int rank = rst_id->idx_c->simulation_rank; // The rank of processes
+  int max_patch_size = 0;
+  int rank = rst_id->idx_c->simulation_rank; // The rank of processes
 
-	// Event time
-	rst_id->padding_time = 0;
-	rst_id->wavelet_time = 0;
-	rst_id->zfp_compression_time = 0;
+  // Event time
+  rst_id->padding_time = 0;
+  rst_id->wavelet_time = 0;
+  rst_id->zfp_compression_time = 0;
 
-	srand((unsigned) time(NULL)); // wavelet level random seed
-	unsigned long long process_comp_size = 0;   // The total size of a process after compression
-	PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
-	int patch_count = var0->brick_res_precision_io_restructured_super_patch_count; // local number of bricks
-	rst_id->compressed_sizes = (int *) malloc(patch_count * sizeof(int)); // local compressed bricks size array
-	rst_id->patches_global_id = (int *) malloc(patch_count * sizeof(int));// local global id array
-	rst_id->patches_rank = (int *) malloc(patch_count * sizeof(int)); // local brick rank array (which brick belongs to which process)
-	rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
-	for (g = 0; g < patch_count; ++g)
-	{
-		int vars_comp_size = 0; // The size of a brick which contains all the variables
+  srand((unsigned) time(NULL)); // wavelet level random seed
+  unsigned long long process_comp_size = 0;   // The total size of a process after compression
+  PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
+  int patch_count = var0->brick_res_precision_io_restructured_super_patch_count; // local number of bricks
+  rst_id->compressed_sizes = (int *) malloc(patch_count * sizeof(int)); // local compressed bricks size array
+  rst_id->patches_global_id = (int *) malloc(patch_count * sizeof(int));// local global id array
+  rst_id->patches_rank = (int *) malloc(patch_count * sizeof(int)); // local brick rank array (which brick belongs to which process)
+  rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
+  for (g = 0; g < patch_count; ++g)
+  {
+    int vars_comp_size = 0; // The size of a brick which contains all the variables
 
-		int v_start = 0;
-		int svi = rst_id->first_index;
-		int evi = rst_id->last_index + 1;
-		for (v_start = svi; v_start < evi; v_start = v_start + 1)
-		{
-			// copy the size and offset to output
-			PIDX_variable var_start = rst_id->idx->variable[v_start];
-			PIDX_patch out_patch = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch;
-
-			// Calculate the bits per sample
-			int bits = 0;
-			PIDX_variable var = rst_id->idx->variable[v_start];
-			bits = (var->bpv/8) * var->vps;
-
-			// Get random wavelet level ( >= 1)
-			int wavelet_level = rand()%(max_wavelet_level+1);
-			wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
-			out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
-
-			unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
-			uint64_t buffer_size = out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
-			uint64_t size = patch_x * patch_y * patch_z;
-			unsigned char* res_buf = NULL;
-
-			// If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
-			double padding_start = MPI_Wtime();
-			if (buffer_size < size)
-			{
-			  res_buf = calloc(size * bits, sizeof(unsigned char));
-			  int index1 = 0; int index2 = 0;
-			  for (int i = 0; i < out_patch->size[2]; i++)
-			  {
-				  for (int j = 0; j < out_patch->size[1]; j++)
-				  {
-					  index1 = i * out_patch->size[1] * out_patch->size[0] + j * out_patch->size[0];
-					  index2 = i * patch_y * patch_x + j * patch_x;
-					  memcpy(&res_buf[index2 * bits], &buf[index1 * bits], out_patch->size[0] * bits);
-				  }
-			  }
-			  buf = res_buf;  // Pass res_buf pointer to buffer pointer
-			}
-			double padding_end = MPI_Wtime();
-			rst_id->padding_time += padding_end - padding_start;
-
-			// Wavelet transform
-			double wavelet_start = MPI_Wtime();  // wavelet start time
-			PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
-			// Calculate the x_counts, y_counts, z_counts for dc component based on the random wavelet level
-			uint64_t dc_dimension[3];
-			PIDX_calculate_level_dimension(dc_dimension, patch_size, wavelet_level);
-			uint64_t dc_size = dc_dimension[0] * dc_dimension[1] * dc_dimension[2];
-			double wavelet_end = MPI_Wtime();
-			rst_id->wavelet_time += wavelet_end - wavelet_start;
-
-			// Wavelet compression
-			double zfp_compression_start = MPI_Wtime();
-			out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
-			PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
-			out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
-			// copy all the brick buffers to one big buffer per process
-			memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
-			process_comp_size += out_patch->total_compress_size; // total compressed size per process
-			vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
-			double zfp_compreesion_end = MPI_Wtime();
-			rst_id->zfp_compression_time += zfp_compreesion_end - zfp_compression_start;
-			free(res_buf);
-		}
-		if (vars_comp_size > max_patch_size)
-			max_patch_size = vars_comp_size;
-
-		rst_id->compressed_sizes[g] = vars_comp_size; // Store the compressed size per brick
-		rst_id->patches_global_id[g] = var0->brick_res_precision_io_restructured_super_patch[g]->global_id; // store the global id per brick
-		rst_id->patches_rank[g] = rank;
-	}
-  	rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
-
-  	unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
-    int required_num_brick = rst_id->idx->required_num_brick; // Required number of bricks
-	int process_count = rst_id->idx_c->simulation_nprocs; // Number of processes
-
-	rst_id->sync_start = MPI_Wtime(); // All the processes should reached here before executing allreduce
-	int total_patches_count = 0; // Total patches count
-	MPI_Allreduce(&patch_count, &total_patches_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-	rst_id->total_num_bricks = total_patches_count;
-	rst_id->sync_end = MPI_Wtime();
-
-	rst_id->aggregation_start = MPI_Wtime(); // Aggregation start time
-	int num_files = 0;
-    if (required_num_brick > 0)
+    int v_start = 0;
+    int svi = rst_id->first_index;
+    int evi = rst_id->last_index + 1;
+    for (v_start = svi; v_start < evi; v_start = v_start + 1)
     {
-    	num_files = total_patches_count / required_num_brick; // The number of files
-    	num_files = (total_patches_count % required_num_brick == 0)? num_files: (num_files + 1);
-    	int mim_num_brick = total_patches_count / process_count; // The bottle line for the number of bricks
-    	if (num_files > process_count)
+      // copy the size and offset to output
+      PIDX_variable var_start = rst_id->idx->variable[v_start];
+      PIDX_patch out_patch = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch;
+
+      // Calculate the bits per sample
+      int bits = 0;
+      PIDX_variable var = rst_id->idx->variable[v_start];
+      bits = (var->bpv/8) * var->vps;
+
+      // Get random wavelet level ( >= 1)
+      int wavelet_level = rand()%(max_wavelet_level+1);
+      wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
+      out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
+
+      unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
+      uint64_t buffer_size = out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
+      uint64_t size = patch_x * patch_y * patch_z;
+      unsigned char* res_buf = NULL;
+
+      // If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
+      double padding_start = MPI_Wtime();
+      if (buffer_size < size)
+      {
+    	res_buf = calloc(size * bits, sizeof(unsigned char));
+    	int index1 = 0; int index2 = 0;
+    	for (int i = 0; i < out_patch->size[2]; i++)
     	{
-    		printf("ERROR: The required number of bricks should be larger than %d\n", mim_num_brick);
-    		return PIDX_err_io;
+		  for (int j = 0; j < out_patch->size[1]; j++)
+		  {
+			index1 = i * out_patch->size[1] * out_patch->size[0] + j * out_patch->size[0];
+			index2 = i * patch_y * patch_x + j * patch_x;
+			memcpy(&res_buf[index2 * bits], &buf[index1 * bits], out_patch->size[0] * bits);
+		  }
     	}
+    	buf = res_buf;  // Pass res_buf pointer to buffer pointer
+      }
+      double padding_end = MPI_Wtime();
+      rst_id->padding_time += padding_end - padding_start;
+
+      // Wavelet transform
+      double wavelet_start = MPI_Wtime();  // wavelet start time
+      PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
+      // Calculate the x_counts, y_counts, z_counts for dc component based on the random wavelet level
+      uint64_t dc_dimension[3];
+      PIDX_calculate_level_dimension(dc_dimension, patch_size, wavelet_level);
+      uint64_t dc_size = dc_dimension[0] * dc_dimension[1] * dc_dimension[2];
+      double wavelet_end = MPI_Wtime();
+      rst_id->wavelet_time += wavelet_end - wavelet_start;
+
+      // Wavelet compression
+      double zfp_compression_start = MPI_Wtime();
+      out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
+      PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch);
+      out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
+      // copy all the brick buffers to one big buffer per process
+      memcpy(&rst_id->idx->procs_comp_buffer[process_comp_size], out_patch->compressed_buffer, out_patch->total_compress_size);
+      process_comp_size += out_patch->total_compress_size; // total compressed size per process
+      vars_comp_size += out_patch->total_compress_size; // total compressed size of all the variables
+      double zfp_compreesion_end = MPI_Wtime();
+      rst_id->zfp_compression_time += zfp_compreesion_end - zfp_compression_start;
+      free(res_buf);
     }
-    if (max_file_size > 0)
-    {
-		// Maximun patch size over all the patches
-		int max_pros_patch_size = 0;
-		MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-		// The required file size should larger than the maximum patch size
-		if (max_file_size < (unsigned long long)max_pros_patch_size)
-		{
-			printf("ERROR: The required file size should be larger than %d\n", max_pros_patch_size);
-			return PIDX_err_io;
-		}
-		// Total patches size over all the processes
-		unsigned long long total_patches_size = 0;
-		MPI_Allreduce(&process_comp_size, &total_patches_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-		// Total number of out files
-		num_files = total_patches_size/max_file_size;
-		unsigned long long remaining_size = total_patches_size % max_file_size;
-		if (remaining_size != 0)
-		{
-			unsigned long long tolerance = max_file_size * 0.5;
-			if (remaining_size > tolerance)
-				num_files += 1;
-			else
-				max_file_size += remaining_size/num_files;
-		}
-		// The total number of files should smaller than the number of processes
-		unsigned long long min_file_size = total_patches_size/process_count;
-		if (process_count < num_files)
-		{
-			printf("ERROR: The required file size should be larger than %llu\n", min_file_size);
-			return PIDX_err_io;
-		}
-    }
-	rst_id->idx->agg_counts = num_files; // The number of aggregation ranks
+    if (vars_comp_size > max_patch_size)
+      max_patch_size = vars_comp_size;
 
-	// Patch counts array
-	int patches_count_array[process_count];
-	MPI_Allgather(&patch_count, 1, MPI_INT, patches_count_array, 1, MPI_INT, MPI_COMM_WORLD);
-	// The displacement at which to place the incoming data from process i
-	int displace_array[process_count];
-	int value = 0;
-	for (int i = 0; i < process_count; i++)
+    rst_id->compressed_sizes[g] = vars_comp_size; // Store the compressed size per brick
+    rst_id->patches_global_id[g] = var0->brick_res_precision_io_restructured_super_patch[g]->global_id; // store the global id per brick
+    rst_id->patches_rank[g] = rank;
+  }
+  rst_id->idx->procs_comp_buffer = (unsigned char*)realloc(rst_id->idx->procs_comp_buffer, process_comp_size);
+
+  unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
+  int required_num_brick = rst_id->idx->required_num_brick; // Required number of bricks
+  int process_count = rst_id->idx_c->simulation_nprocs; // Number of processes
+
+  rst_id->sync_start = MPI_Wtime(); // All the processes should reached here before executing allreduce
+  int total_patches_count = 0; // Total patches count
+  MPI_Allreduce(&patch_count, &total_patches_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  rst_id->total_num_bricks = total_patches_count;
+  rst_id->sync_end = MPI_Wtime();
+
+  rst_id->aggregation_start = MPI_Wtime(); // Aggregation start time
+  int num_files = 0;
+  if (required_num_brick > 0)
+  {
+	num_files = total_patches_count / required_num_brick; // The number of files
+	num_files = (total_patches_count % required_num_brick == 0)? num_files: (num_files + 1);
+	int mim_num_brick = total_patches_count / process_count; // The bottle line for the number of bricks
+	if (num_files > process_count)
 	{
-		displace_array[i] = value;
-		value += patches_count_array[i];
+	  printf("ERROR: The required number of bricks should be larger than %d\n", mim_num_brick);
+	  return PIDX_err_io;
 	}
-	// Patches compressed size array
-	int patch_size_array[total_patches_count];
-	MPI_Allgatherv(rst_id->compressed_sizes, patch_count, MPI_INT,
-			patch_size_array, patches_count_array, displace_array,
-			MPI_INT, MPI_COMM_WORLD);
-	// Patches global Id array
-	int patch_global_id_array[total_patches_count];
-	MPI_Allgatherv(rst_id->patches_global_id, patch_count, MPI_INT,
-			patch_global_id_array, patches_count_array, displace_array,
-			MPI_INT, MPI_COMM_WORLD);
-	// Patches rank array
-	int patch_rank_array[total_patches_count];
-	MPI_Allgatherv(rst_id->patches_rank, patch_count, MPI_INT,
-			patch_rank_array, patches_count_array, displace_array,
-			MPI_INT, MPI_COMM_WORLD);
-
-	// Decide aggregation ranks
-	int aggregate_rank[num_files];
-	int div = process_count/num_files;
-	int agg_index = 0;
-	for (int i = 0; i < process_count; i++)
+  }
+  if (max_file_size > 0)
+  {
+	// Maximun patch size over all the patches
+	int max_pros_patch_size = 0;
+	MPI_Allreduce(&max_patch_size, &max_pros_patch_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	// The required file size should larger than the maximum patch size
+	if (max_file_size < (unsigned long long)max_pros_patch_size)
 	{
-		if (i % div == 0)
-		{
-			aggregate_rank[agg_index] = i;
-			agg_index++;
-		}
+	  printf("ERROR: The required file size should be larger than %d\n", max_pros_patch_size);
+	  return PIDX_err_io;
 	}
-
-	// Record which brick should send to which aggregate
-	int aggregate_record[total_patches_count];
-	memset(aggregate_record, -1, total_patches_count * sizeof(int));
-	unsigned long long agg_size[num_files]; // The file size per aggregate
-
-	if (required_num_brick > 0)
+	// Total patches size over all the processes
+	unsigned long long total_patches_size = 0;
+	MPI_Allreduce(&process_comp_size, &total_patches_size, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+	// Total number of out files
+	num_files = total_patches_size/max_file_size;
+	unsigned long long remaining_size = total_patches_size % max_file_size;
+	if (remaining_size != 0)
 	{
-		int i = 0;
-		for (i = 0 ; i < (num_files - 1); i++)
-		{
-			agg_size[i] = 0;
-			for (int j = 0; j < required_num_brick; j++)
-			{
-				int id = i*required_num_brick + j;
-				aggregate_record[id] = aggregate_rank[i];
-				agg_size[i] += patch_size_array[id];
-			}
-		}
-		int index = i*required_num_brick;
-		agg_size[i] = 0;
-		while (index < total_patches_count)
-		{
-			aggregate_record[index] = aggregate_rank[i];
-			agg_size[i] += patch_size_array[index];
-			index++;
-		}
+	  unsigned long long tolerance = max_file_size * 0.5;
+	  if (remaining_size > tolerance)
+		num_files += 1;
+	  else
+		max_file_size += remaining_size/num_files;
 	}
-
-	if (max_file_size > 0)
+	// The total number of files should smaller than the number of processes
+	unsigned long long min_file_size = total_patches_size/process_count;
+	if (process_count < num_files)
 	{
-		// Traverse all the bricks and assign them to aggregates based on the required file size
-		for (int i = (num_files - 1) ; i > -1; i--)
-		{
-			agg_size[i] = 0;
-			for (int j = (total_patches_count - 1); j > -1; j--)
-			{
-				if (aggregate_record[j] == -1 && (agg_size[i] + patch_size_array[j]) < max_file_size)
-				{
-					aggregate_record[j] = aggregate_rank[i];
-					agg_size[i] += patch_size_array[j];
-				}
-			}
-		}
-		// Assign remaining bricks to the aggregate which holds the minimum size
-		for (int i = (total_patches_count - 1); i > -1; i--)
-		{
-			if (aggregate_record[i] == -1)
-			{
-				unsigned long long min_size = max_file_size;
-				int min_rank = -1;
-				int min_index = -1;
-				for (int j = 0; j < num_files; j++)
-				{
-					if (agg_size[j] < min_size)
-					{
-						min_size = agg_size[j];
-						min_rank = aggregate_rank[j];
-						min_index = j;
-					}
-				}
-				aggregate_record[i] = min_rank;
-				agg_size[min_index] += patch_size_array[i];
-			}
-		}
+	  printf("ERROR: The required file size should be larger than %llu\n", min_file_size);
+	  return PIDX_err_io;
 	}
+  }
+  rst_id->idx->agg_counts = num_files; // The number of aggregation ranks
+  // Patch counts array
+  int patches_count_array[process_count];
+  MPI_Allgather(&patch_count, 1, MPI_INT, patches_count_array, 1, MPI_INT, MPI_COMM_WORLD);
+  // The displacement at which to place the incoming data from process i
+  int displace_array[process_count];
+  int value = 0;
+  for (int i = 0; i < process_count; i++)
+  {
+	displace_array[i] = value;
+	value += patches_count_array[i];
+  }
+  // Patches compressed size array
+  int patch_size_array[total_patches_count];
+  MPI_Allgatherv(rst_id->compressed_sizes, patch_count, MPI_INT,
+		patch_size_array, patches_count_array, displace_array,
+		MPI_INT, MPI_COMM_WORLD);
+  // Patches global Id array
+  int patch_global_id_array[total_patches_count];
+  MPI_Allgatherv(rst_id->patches_global_id, patch_count, MPI_INT,
+		patch_global_id_array, patches_count_array, displace_array,
+		MPI_INT, MPI_COMM_WORLD);
+  // Patches rank array
+  int patch_rank_array[total_patches_count];
+  MPI_Allgatherv(rst_id->patches_rank, patch_count, MPI_INT,
+		patch_rank_array, patches_count_array, displace_array,
+		MPI_INT, MPI_COMM_WORLD);
 
-	rst_id->idx->agg_size = 0; // The size per aggregate
-	unsigned char* aggregate_buffer = NULL;
-	for (int i = 0; i < num_files; i++)
+  // Decide aggregation ranks
+  int aggregate_rank[num_files];
+  int div = process_count/num_files;
+  int agg_index = 0;
+  for (int i = 0; i < process_count; i++)
+  {
+	if (i % div == 0)
 	{
-		if (rank == aggregate_rank[i])
-		{
-			aggregate_buffer = (unsigned char*) malloc(agg_size[i]); // aggregate buffer
-			rst_id->idx->agg_size = agg_size[i];
-		}
+	  aggregate_rank[agg_index] = i;
+	  agg_index++;
 	}
+  }
 
-	unsigned long long local_brick_disp[patch_count]; // The displacement for each brick per process
-	int start_index = displace_array[rank]; // The index of first brick for each process
-	int disp = 0;
-	for (int i  = 0; i < patch_count; i++)
+  // Record which brick should send to which aggregate
+  int aggregate_record[total_patches_count];
+  memset(aggregate_record, -1, total_patches_count * sizeof(int));
+  unsigned long long agg_size[num_files]; // The file size per aggregate
+
+  if (required_num_brick > 0)
+  {
+	int i = 0;
+	for (i = 0 ; i < (num_files - 1); i++)
 	{
-		int id = start_index + i;
-		local_brick_disp[i] = disp;
-		disp += patch_size_array[id];
+	  agg_size[i] = 0;
+	  for (int j = 0; j < required_num_brick; j++)
+	  {
+		int id = i*required_num_brick + j;
+		aggregate_record[id] = aggregate_rank[i];
+		agg_size[i] += patch_size_array[id];
+	  }
 	}
-
-	// Point-to-point communication
-	rst_id->idx->agg_patch_array = (int*) malloc(total_patches_count * sizeof(int));
-	rst_id->idx->agg_patches_size_array = (int*) malloc(total_patches_count * sizeof(int));
-	int owned_patch_count = 0;
-	unsigned long long agg_cur_size = 0; // Current aggregate size
-	int tag = 0; // Send and Receive tags
-	for (int i  = 0; i < total_patches_count; i++)
+	int index = i*required_num_brick;
+	agg_size[i] = 0;
+	while (index < total_patches_count)
 	{
-		MPI_Request req[2];
-		MPI_Status stat[2];
-
-		int id = i - start_index;
-		if (patch_rank_array[i] == aggregate_record[i] && rank == patch_rank_array[i])
-		{
-			memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i]);
-			agg_cur_size += patch_size_array[i];
-			owned_patch_count++;
-			printf("COPY id: %d, rank %d to self\n", i, rank);
-		}
-		else
-		{
-			if (rank == aggregate_record[i])
-			{
-				MPI_Irecv(&aggregate_buffer[agg_cur_size], patch_size_array[i], MPI_UNSIGNED_CHAR, patch_rank_array[i],
-						tag, MPI_COMM_WORLD, &req[0]);
-				MPI_Wait(&req[0], &stat[0]);
-				agg_cur_size += patch_size_array[i];
-				rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
-				rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[i];
-				owned_patch_count++;
-				printf("Recv id: %d, rank %d from %d\n", i, rank, patch_rank_array[i]);
-			}
-			if (rank == patch_rank_array[i])
-			{
-				MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i], MPI_UNSIGNED_CHAR, aggregate_record[i], tag,
-						MPI_COMM_WORLD, &req[1]);
-				MPI_Wait(&req[1], &stat[1]);
-				printf("Send id: %d, rank %d to %d\n", i, rank, aggregate_record[i]);
-			}
-		}
-		tag++;
+	  aggregate_record[index] = aggregate_rank[i];
+	  agg_size[i] += patch_size_array[index];
+	  index++;
 	}
-	// resize
-	rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
-	rst_id->idx->agg_owned_patch_count = owned_patch_count;
-	rst_id->aggregation_end = MPI_Wtime(); // Aggregation end time
+  }
 
-	rst_id->write_io_start = MPI_Wtime(); // write IO start time
-	// write out files
-	if (agg_cur_size > 0)
+  if (max_file_size > 0)
+  {
+	// Traverse all the bricks and assign them to aggregates based on the required file size
+	for (int i = (num_files - 1) ; i > -1; i--)
 	{
-		char *file_name;
-		file_name = malloc(PATH_MAX * sizeof(*file_name));
-		memset(file_name, 0, PATH_MAX * sizeof(*file_name));
-
-		sprintf(file_name, "%s/time"
-				"%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
-		int fp = open(file_name, O_CREAT | O_WRONLY, 0664);
-
-		uint64_t buffer_size =  agg_cur_size;
-		uint64_t write_count = pwrite(fp, aggregate_buffer, buffer_size, 0);
-		if (write_count != buffer_size)
+	  agg_size[i] = 0;
+	  for (int j = (total_patches_count - 1); j > -1; j--)
+	  {
+		if (aggregate_record[j] == -1 && (agg_size[i] + patch_size_array[j]) < max_file_size)
 		{
-			fprintf(stderr, "[%s] [%d] pwrite() failed.\n", __FILE__, __LINE__);
-			return PIDX_err_io;
+		  aggregate_record[j] = aggregate_rank[i];
+		  agg_size[i] += patch_size_array[j];
 		}
-
-		close(fp);
-		free(file_name);
+	  }
 	}
-	rst_id->write_io_end = MPI_Wtime(); // write IO end time
+	// Assign remaining bricks to the aggregate which holds the minimum size
+	for (int i = (total_patches_count - 1); i > -1; i--)
+	{
+	  if (aggregate_record[i] == -1)
+	  {
+		unsigned long long min_size = max_file_size;
+		int min_rank = -1;
+		int min_index = -1;
+		for (int j = 0; j < num_files; j++)
+		{
+		  if (agg_size[j] < min_size)
+		  {
+			min_size = agg_size[j];
+			min_rank = aggregate_rank[j];
+			min_index = j;
+		  }
+		}
+		aggregate_record[i] = min_rank;
+		agg_size[min_index] += patch_size_array[i];
+	  }
+	}
+  }
 
-  	if(rank == 0)
-  		printf("TEST 4\n");
+  rst_id->idx->agg_size = 0; // The size per aggregate
+  unsigned char* aggregate_buffer = NULL;
+  for (int i = 0; i < num_files; i++)
+  {
+	if (rank == aggregate_rank[i])
+	{
+	  aggregate_buffer = (unsigned char*) malloc(agg_size[i]); // aggregate buffer
+	  rst_id->idx->agg_size = agg_size[i];
+	}
+  }
 
-	free(aggregate_buffer);
-	free(directory_path);
-	return PIDX_success;
+  unsigned long long local_brick_disp[patch_count]; // The displacement for each brick per process
+  int start_index = displace_array[rank]; // The index of first brick for each process
+  int disp = 0;
+  for (int i  = 0; i < patch_count; i++)
+  {
+	int id = start_index + i;
+	local_brick_disp[i] = disp;
+	disp += patch_size_array[id];
+  }
+
+  if (rank == 0)
+  {
+	for (int i = 0; i < total_patches_count; i++)
+	{
+	  printf("%d, hold by %d, send to %d\n", patch_global_id_array[i], patch_rank_array[i], aggregate_record[i]);
+	}
+  }
+
+  // Point-to-point communication
+  rst_id->idx->agg_patch_array = (int*) malloc(total_patches_count * sizeof(int));
+  rst_id->idx->agg_patches_size_array = (int*) malloc(total_patches_count * sizeof(int));
+  int owned_patch_count = 0;
+  unsigned long long agg_cur_size = 0; // Current aggregate size
+  int tag = 0; // Send and Receive tags
+  for (int i  = 0; i < total_patches_count; i++)
+  {
+	MPI_Request req[2];
+	MPI_Status stat[2];
+
+	int id = i - start_index;
+	if (patch_rank_array[i] == aggregate_record[i] && rank == patch_rank_array[i])
+	{
+	  memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i]);
+	  agg_cur_size += patch_size_array[i];
+	  owned_patch_count++;
+	  printf("COPY id: %d, rank %d to self\n", i, rank);
+	}
+	else
+	{
+	  if (rank == aggregate_record[i])
+	  {
+		MPI_Irecv(&aggregate_buffer[agg_cur_size], patch_size_array[i], MPI_UNSIGNED_CHAR, patch_rank_array[i],
+				tag, MPI_COMM_WORLD, &req[0]);
+		MPI_Wait(&req[0], &stat[0]);
+		agg_cur_size += patch_size_array[i];
+		rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
+		rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[i];
+		owned_patch_count++;
+		printf("Recv id: %d, rank %d from %d\n", i, rank, patch_rank_array[i]);
+	  }
+	  if (rank == patch_rank_array[i])
+	  {
+		MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i], MPI_UNSIGNED_CHAR, aggregate_record[i], tag,
+				MPI_COMM_WORLD, &req[1]);
+		MPI_Wait(&req[1], &stat[1]);
+		printf("Send id: %d, rank %d to %d\n", i, rank, aggregate_record[i]);
+	  }
+	}
+	tag++;
+  }
+  // resize
+  rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
+  rst_id->idx->agg_owned_patch_count = owned_patch_count;
+  rst_id->aggregation_end = MPI_Wtime(); // Aggregation end time
+
+  rst_id->write_io_start = MPI_Wtime(); // write IO start time
+  // write out files
+  if (agg_cur_size > 0)
+  {
+	char *file_name;
+	file_name = malloc(PATH_MAX * sizeof(*file_name));
+	memset(file_name, 0, PATH_MAX * sizeof(*file_name));
+
+	sprintf(file_name, "%s/time"
+			"%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
+	int fp = open(file_name, O_CREAT | O_WRONLY, 0664);
+
+	uint64_t buffer_size =  agg_cur_size;
+	uint64_t write_count = pwrite(fp, aggregate_buffer, buffer_size, 0);
+	if (write_count != buffer_size)
+	{
+	  fprintf(stderr, "[%s] [%d] pwrite() failed.\n", __FILE__, __LINE__);
+	  return PIDX_err_io;
+	}
+
+	close(fp);
+	free(file_name);
+  }
+  rst_id->write_io_end = MPI_Wtime(); // write IO end time
+
+  if(rank == 0)
+  	printf("TEST 4\n");
+
+  free(aggregate_buffer);
+  free(directory_path);
+  return PIDX_success;
 }
 
 
