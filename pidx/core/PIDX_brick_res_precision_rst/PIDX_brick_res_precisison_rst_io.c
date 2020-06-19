@@ -836,12 +836,13 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   int agg_index = 0;
   for (int i = 0; i < process_count; i++)
   {
-	if (i % div == 0)
+	if (i % div == 0 && agg_index < num_files)
 	{
 	  aggregate_rank[agg_index] = i;
 	  agg_index++;
 	}
   }
+
 
   // Record which brick should send to which aggregate
   int aggregate_record[total_patches_count];
@@ -930,14 +931,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	disp += patch_size_array[id];
   }
 
-  if (rank == 0)
-  {
-	for (int i = 0; i < total_patches_count; i++)
-	{
-	  printf("%d, hold by %d, send to %d\n", patch_global_id_array[i], patch_rank_array[i], aggregate_record[i]);
-	}
-  }
-
   // Point-to-point communication
   rst_id->idx->agg_patch_array = (int*) malloc(total_patches_count * sizeof(int));
   rst_id->idx->agg_patches_size_array = (int*) malloc(total_patches_count * sizeof(int));
@@ -955,7 +948,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	  memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i]);
 	  agg_cur_size += patch_size_array[i];
 	  owned_patch_count++;
-	  printf("COPY id: %d, rank %d to self\n", i, rank);
 	}
 	else
 	{
@@ -968,14 +960,12 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 		rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
 		rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[i];
 		owned_patch_count++;
-		printf("Recv id: %d, rank %d from %d\n", i, rank, patch_rank_array[i]);
 	  }
 	  if (rank == patch_rank_array[i])
 	  {
-		MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i], MPI_UNSIGNED_CHAR, aggregate_record[i], tag,
+	    MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i], MPI_UNSIGNED_CHAR, aggregate_record[i], tag,
 				MPI_COMM_WORLD, &req[1]);
-		MPI_Wait(&req[1], &stat[1]);
-		printf("Send id: %d, rank %d to %d\n", i, rank, aggregate_record[i]);
+	    MPI_Wait(&req[1], &stat[1]);
 	  }
 	}
 	tag++;
@@ -1009,9 +999,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	free(file_name);
   }
   rst_id->write_io_end = MPI_Wtime(); // write IO end time
-
-  if(rank == 0)
-  	printf("TEST 4\n");
 
   free(aggregate_buffer);
   free(directory_path);
