@@ -89,17 +89,6 @@ struct PIDX_brick_res_precision_rst_struct
   int total_num_bricks;
   int proc_num_bricks;
 
-
-  /********** Time ******************/
-  double padding_time;
-  double wavelet_time;
-  double zfp_compression_time;
-  double sync_start;
-  double sync_end;
-  double aggregation_start;
-  double aggregation_end;
-  double write_io_start;
-  double write_io_end;
 };
 typedef struct PIDX_brick_res_precision_rst_struct* PIDX_brick_res_precision_rst_id;
 

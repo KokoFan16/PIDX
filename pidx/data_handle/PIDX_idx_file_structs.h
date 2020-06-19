@@ -114,6 +114,7 @@ struct idx_file_struct
 
   //########### Added by KE #################
   unsigned long long max_file_size;
+  unsigned long long total_size; // the total size of all the bricks
   int required_num_brick; // The required number of bricks per aggregate
   unsigned char* procs_comp_buffer;  // Total compressed buffer per process
   int agg_counts; // The number of aggregates
@@ -121,6 +122,18 @@ struct idx_file_struct
   int* agg_patch_array; // The patches are owned by each aggregate
   int agg_owned_patch_count; // the number of patch owned by each aggregate
   int* agg_patches_size_array; // All the patch size that owned by each aggregate
+  int is_aggregator; // If the rank is a aggregator
+
+  /********** Time ******************/
+  double padding_time;
+  double wavelet_time;
+  double zfp_compression_time;
+  double sync_start;
+  double sync_end;
+  double aggregation_start;
+  double aggregation_end;
+  double write_io_start;
+  double write_io_end;
 };
 typedef struct idx_file_struct* idx_dataset;
 
