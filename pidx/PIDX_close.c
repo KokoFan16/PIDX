@@ -467,10 +467,29 @@ static void PIDX_debug_output(PIDX_file file, int svi, int evi, int io_type)
 	double write_io_time = file->idx->write_io_end - file->idx->write_io_start;
 	if (rank == 0)
 	{
-	  fprintf(stderr, "[RPW]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d S %llu]\n", file->idx->filename,
+	  fprintf(stderr, "[RPW]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d A %d S %llu]\n", file->idx->filename,
 		  (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
 		  (int)file->restructured_grid->patch_size[0], (int)file->restructured_grid->patch_size[1], (int)file->restructured_grid->patch_size[2],
-		  file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi), rst_id->total_num_bricks, file->idx->total_size);
+		  file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi), rst_id->total_num_bricks, file->idx->agg_counts, file->idx->total_size);
+	}
+
+	if (max_time == total_time)
+	{
+		fprintf(stderr,"[MAX %d]: [T %f B %d A %d S %llu]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
+			   total_time, file->idx->variable[0]->brick_res_precision_io_restructured_super_patch_count,
+			   file->idx->agg_owned_patch_count, file->idx->agg_size, create_multi_res_pre_time,
+			   file->idx->padding_time, file->idx->wavelet_time, file->idx->zfp_compression_time, sync_time, aggregation_time, write_io_time);
+	}
+
+	double min_time;
+	MPI_Allreduce(&total_time, &min_time, 1, MPI_DOUBLE, MPI_MIN, file->idx_c->simulation_comm);
+
+	if (min_time == total_time)
+	{
+		fprintf(stderr,"[MIN %d]: [T %f B %d A %d S %llu]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
+			  total_time, file->idx->variable[0]->brick_res_precision_io_restructured_super_patch_count,
+			  file->idx->agg_owned_patch_count, file->idx->agg_size, create_multi_res_pre_time,
+			  file->idx->padding_time, file->idx->wavelet_time, file->idx->zfp_compression_time, sync_time, aggregation_time, write_io_time);
 	}
 
 	if (file->idx->is_aggregator == 1)
