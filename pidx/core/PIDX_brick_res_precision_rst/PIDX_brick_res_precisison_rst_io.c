@@ -685,8 +685,9 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
       bits = (var->bpv/8) * var->vps;
 
       // Get random wavelet level ( >= 1)
-      int wavelet_level = rand()%(max_wavelet_level+1);
-      wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
+//      int wavelet_level = rand()%(max_wavelet_level+1);
+//      wavelet_level = (wavelet_level < 1) ? 1: wavelet_level;
+      int wavelet_level = max_wavelet_level;
       out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
 
       unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
