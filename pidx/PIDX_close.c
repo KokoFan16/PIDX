@@ -469,15 +469,15 @@ static void PIDX_debug_output(PIDX_file file, int svi, int evi, int io_type)
 	{
 	  if (file->idx->max_file_size > 0)
 	  {
-		fprintf(stderr, "[Fixed File Size]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d A %d S %llu]\n", file->idx->filename,
-		       (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
+		fprintf(stderr, "[Fixed File Size: %d]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d A %d S %llu]\n", file->idx->max_file_size,
+			    file->idx->filename, (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
 		       (int)file->restructured_grid->patch_size[0], (int)file->restructured_grid->patch_size[1], (int)file->restructured_grid->patch_size[2],
 		       file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi), rst_id->total_num_bricks, file->idx->agg_counts, file->idx->total_size);
 	  }
 	  if (file->idx->required_num_brick > 0)
 	  {
-		fprintf(stderr, "[Fixed Bricks Number]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d A %d S %llu]\n", file->idx->filename,
-		  	   (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
+		fprintf(stderr, "[Fixed Bricks Number: %d]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d A %d S %llu]\n", file->idx->required_num_brick,
+				file->idx->filename, (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
 		  	   (int)file->restructured_grid->patch_size[0], (int)file->restructured_grid->patch_size[1], (int)file->restructured_grid->patch_size[2],
 		  	   file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi), rst_id->total_num_bricks, file->idx->agg_counts, file->idx->total_size);
 	  }
