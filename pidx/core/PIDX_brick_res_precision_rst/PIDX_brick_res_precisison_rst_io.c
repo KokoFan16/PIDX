@@ -989,8 +989,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	file_name = malloc(PATH_MAX * sizeof(*file_name));
 	memset(file_name, 0, PATH_MAX * sizeof(*file_name));
 
-	sprintf(file_name, "%s/time"
-			"%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
+	sprintf(file_name, "%s/time%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
 	int fp = open(file_name, O_CREAT | O_WRONLY, 0664);
 
 	uint64_t buffer_size =  agg_cur_size;
@@ -1000,7 +999,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	  fprintf(stderr, "[%s] [%d] pwrite() failed.\n", __FILE__, __LINE__);
 	  return PIDX_err_io;
 	}
-
 	close(fp);
 	free(file_name);
   }
