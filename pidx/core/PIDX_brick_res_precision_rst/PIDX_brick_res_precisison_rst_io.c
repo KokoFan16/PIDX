@@ -535,7 +535,7 @@ void PIDX_compress_top_buffer(unsigned char* comp_buf, unsigned char* buf, uint6
 	PIDX_calculate_level_dimension(level_size, patch_size, wavelet_level);
 
   // ZFP compress (0 means the accuracy, and followed 0 means the tolerance (need to be changed))
-  struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
+  struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 1, 16, type_name);
   free(level_buf);
   memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
   *comp_size += output.compress_size;
@@ -572,7 +572,7 @@ void PIDX_compressed_subbands(unsigned char* comp_buf, unsigned char* buf, uint6
 		    // Read subbands per level
 		    PIDX_reorg_helper(buf, level_buf, step, &index, n_step[k], n_step[i], n_step[j], patch_size[0], patch_size[1], patch_size[2], bits);
 		    // ZFP compression per subbands of each level
-		    struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 0, 0, type_name);
+		    struct PIDX_zfp_compress_pointer output = PIDX_compress_3D_float(level_buf, level_size[0], level_size[1], level_size[2], 1, 16, type_name);
 		    comp_blocks_sizes[count] = output.compress_size;
 		    memcpy(&comp_buf[*comp_size], output.p, output.compress_size); // Combine buffer
 		    *comp_size += output.compress_size;
