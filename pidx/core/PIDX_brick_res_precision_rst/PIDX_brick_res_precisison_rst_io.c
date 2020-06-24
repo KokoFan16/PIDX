@@ -881,10 +881,10 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   if (max_file_size > 0)
   {
 	// Traverse all the bricks and assign them to aggregates based on the required file size
-	for (int i = (num_files - 1) ; i > -1; i--)
+	for (int i = 0 ; i < num_files; i++)
 	{
 	  agg_size[i] = 0;
-	  for (int j = (total_patches_count - 1); j > -1; j--)
+	  for (int j = 0; j < total_patches_count; j++)
 	  {
 		if (aggregate_record[j] == -1 && (agg_size[i] + patch_size_array[j]) < max_file_size)
 		{
@@ -937,48 +937,100 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	disp += patch_size_array[id];
   }
 
-  // Point-to-point communication
+  int local_recv_array[total_patches_count];
+  int local_id_array[total_patches_count];
+  int recv_ind = 0;
+  for (int i = 0; i < total_patches_count; i++)
+  {
+	  if (aggregate_record[i] == rank && patch_rank_array[i] != rank)
+	  {
+		  local_recv_array[recv_ind] = patch_rank_array[i];
+		  local_id_array[recv_ind] = i;
+		  recv_ind++;
+	  }
+  }
+
+  unsigned long long agg_cur_size = 0; // Current aggregate size
+  int index = 0;
   rst_id->idx->agg_patch_array = (int*) malloc(total_patches_count * sizeof(int));
   rst_id->idx->agg_patches_size_array = (int*) malloc(total_patches_count * sizeof(int));
   int owned_patch_count = 0;
-  unsigned long long agg_cur_size = 0; // Current aggregate size
-  int tag = 0; // Send and Receive tags
-  for (int i  = 0; i < total_patches_count; i++)
+  MPI_Request req[patch_count + recv_ind];
+  MPI_Status stat[patch_count + recv_ind];
+  for (int i = 0; i < patch_count; i++)
   {
-	MPI_Request req[2];
-	MPI_Status stat[2];
-
-	int id = i - start_index;
-	if (patch_rank_array[i] == aggregate_record[i] && rank == patch_rank_array[i])
-	{
-	  memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i]);
-	  agg_cur_size += patch_size_array[i];
-	  owned_patch_count++;
-	}
-	else
-	{
-	  if (rank == aggregate_record[i])
+	  int id = start_index + i;
+	  if (rank == aggregate_record[id])
 	  {
-		MPI_Irecv(&aggregate_buffer[agg_cur_size], patch_size_array[i], MPI_UNSIGNED_CHAR, patch_rank_array[i],
-				tag, MPI_COMM_WORLD, &req[0]);
-		MPI_Wait(&req[0], &stat[0]);
-		agg_cur_size += patch_size_array[i];
-		rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
-		rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[i];
-		owned_patch_count++;
+		  memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[i]], patch_size_array[id]);
+		  agg_cur_size += patch_size_array[id];
+		  owned_patch_count++;
 	  }
-	  if (rank == patch_rank_array[i])
+	  else
 	  {
-	    MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i], MPI_UNSIGNED_CHAR, aggregate_record[i], tag,
-				MPI_COMM_WORLD, &req[1]);
-	    MPI_Wait(&req[1], &stat[1]);
+		  MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[i]], patch_size_array[id], MPI_UNSIGNED_CHAR, aggregate_record[id], 0,
+		  			MPI_COMM_WORLD, &req[index]);
+		  MPI_Wait(&req[index], &stat[index]);
+		  index++;
 	  }
-	}
-	tag++;
   }
-  // resize
+
+  for (int i = 0; i < recv_ind; i++)
+  {
+	  MPI_Irecv(&aggregate_buffer[agg_cur_size], patch_size_array[local_id_array[i]], MPI_UNSIGNED_CHAR, local_recv_array[i],
+	  			0, MPI_COMM_WORLD, &req[index]);
+	  MPI_Wait(&req[index], &stat[index]);
+	  agg_cur_size += patch_size_array[local_id_array[i]];
+	  rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
+	  rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[local_id_array[i]];
+	  owned_patch_count++;
+	  index++;
+  }
   rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
   rst_id->idx->agg_owned_patch_count = owned_patch_count;
+
+  // Point-to-point communication
+//  rst_id->idx->agg_patch_array = (int*) malloc(total_patches_count * sizeof(int));
+//  rst_id->idx->agg_patches_size_array = (int*) malloc(total_patches_count * sizeof(int));
+//  int owned_patch_count = 0;
+//  unsigned long long agg_cur_size = 0; // Current aggregate size
+//  int tag = 0; // Send and Receive tags
+//  for (int i  = 0; i < total_patches_count; i++)
+//  {
+//	MPI_Request req[2];
+//	MPI_Status stat[2];
+//
+//	int id = i - start_index;
+//	if (patch_rank_array[i] == aggregate_record[i] && rank == patch_rank_array[i])
+//	{
+//	  memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i]);
+//	  agg_cur_size += patch_size_array[i];
+//	  owned_patch_count++;
+//	}
+//	else
+//	{
+//	  if (rank == aggregate_record[i])
+//	  {
+//		MPI_Irecv(&aggregate_buffer[agg_cur_size], patch_size_array[i], MPI_UNSIGNED_CHAR, patch_rank_array[i],
+//				tag, MPI_COMM_WORLD, &req[0]);
+//		MPI_Wait(&req[0], &stat[0]);
+//		agg_cur_size += patch_size_array[i];
+//		rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
+//		rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[i];
+//		owned_patch_count++;
+//	  }
+//	  if (rank == patch_rank_array[i])
+//	  {
+//	    MPI_Isend(&rst_id->idx->procs_comp_buffer[local_brick_disp[id]], patch_size_array[i], MPI_UNSIGNED_CHAR, aggregate_record[i], tag,
+//				MPI_COMM_WORLD, &req[1]);
+//	    MPI_Wait(&req[1], &stat[1]);
+//	  }
+//	}
+//	tag++;
+//  }
+//  //resize
+//  rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
+//  rst_id->idx->agg_owned_patch_count = owned_patch_count;
   rst_id->idx->aggregation_end = MPI_Wtime(); // Aggregation end time
 
   rst_id->idx->write_io_start = MPI_Wtime(); // write IO start time
