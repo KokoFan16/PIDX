@@ -478,41 +478,6 @@ PIDX_return_code PIDX_brick_res_precision_rst_meta_data_create(PIDX_brick_res_pr
   return PIDX_success;
 }
 
-
-/*************************************************************
- * Add by KE
- * Build a B+ Tree for the global id of bricks
- *************************************************************/
-
-#define M 3 // Max.degree
-
-typedef struct _btNode {
-	int n; /* the counts of keys */
-	int keys[M - 1]; /* array of keys */
-	struct _btNode *p[M]; /* points */
-} btNode;
-
-typedef enum OperationStatus {  /* enumerate all the return status */
-    Success,
-	Duplicate,
-	SearchFailure,
-	Insert,
-} OperationStatus;
-
-// Insert a key
-OperationStatus B_tree_insert(btNode *root, int key)
-{
-	OperationStatus status;
-	btNode *newnode;
-	return status;
-}
-
-PIDX_return_code PIDX_brick_res_precision_rst_meta_data_BTree_write(PIDX_brick_res_precision_rst_id rst_id)
-{
-	btNode *root = NULL;
-	return PIDX_success;
-}
-
 PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_write(PIDX_brick_res_precision_rst_id rst_id)
 {
 	// The path directory for metadata files
@@ -525,12 +490,17 @@ PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_write(PIDX_brick_re
 	char comp_info_path[PATH_MAX];
 	sprintf(comp_info_path, "%s_COMP_INFO", directory_path);
 
+	// aggregation related information
+	char agg_info_path[PATH_MAX];
+	sprintf(agg_info_path, "%s_AGG_INFO", directory_path);
+
 	PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index];
 	int patch_count = var0->brick_res_precision_io_restructured_super_patch_count;
+	int rank = rst_id->idx_c->simulation_rank;
 
 	// Write file
 	FILE* fp = fopen(comp_info_path, "a");
-	if (rst_id->idx_c->simulation_rank == 0)
+	if (rank == 0)
 		fprintf(fp, "(mode)%d (param)%f\n", rst_id->idx->comp_mode, rst_id->idx->comp_param);
 	for (int i = 0; i < patch_count; i++)
 	{
@@ -549,8 +519,23 @@ PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_write(PIDX_brick_re
 		}
 	}
 	fclose(fp);
-	free(directory_path);
 
+	fp = fopen(agg_info_path, "a");
+	if (rank == 0)
+		fprintf(fp, "(num_agg)%d\n", rst_id->idx->agg_counts);
+	if (rst_id->idx->is_aggregator == 1)
+	{
+		int patch_count = rst_id->idx->agg_owned_patch_count;
+		fprintf(fp, "[R %d N %d] {", rank, patch_count);
+		for (int i = 0; i < patch_count - 1; i++)
+		{
+			fprintf(fp, "%d ", rst_id->idx->agg_patch_array[i]);
+		}
+		fprintf(fp, "%d}\n", rst_id->idx->agg_patch_array[patch_count - 1]);
+	}
+
+	fclose(fp);
+	free(directory_path);
 	return PIDX_success;
 }
 

@@ -968,6 +968,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	  {
 		  memcpy(&aggregate_buffer[agg_cur_size], &rst_id->idx->procs_comp_buffer[local_brick_disp[i]], patch_size_array[id]);
 		  agg_cur_size += patch_size_array[id];
+		  rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[id];
 		  owned_patch_count++;
 	  }
 	  else
@@ -985,7 +986,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 	  			0, MPI_COMM_WORLD, &req[index]);
 	  MPI_Wait(&req[index], &stat[index]);
 	  agg_cur_size += patch_size_array[local_id_array[i]];
-	  rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[i];
+	  rst_id->idx->agg_patch_array[owned_patch_count] = patch_global_id_array[local_id_array[i]];
 	  rst_id->idx->agg_patches_size_array[owned_patch_count] = patch_size_array[local_id_array[i]];
 	  owned_patch_count++;
 	  index++;

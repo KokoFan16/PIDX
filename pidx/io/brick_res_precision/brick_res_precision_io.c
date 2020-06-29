@@ -161,6 +161,57 @@ PIDX_return_code PIDX_brick_res_precision_read(PIDX_io file, int svi, int evi)
   return PIDX_success;
 }
 
+/*************************************************************
+ * Add by KE
+ * Build a B Tree for the global id of bricks
+ *************************************************************/
+
+//typedef struct filePtr
+//{
+//	int block_id;
+//	int file_id;
+//} filePtr;
+//
+//// B TREE
+//#define M 3 // The degree
+//
+//typedef struct btnode {
+//	int n;  // the number of keys (n < M)
+//	filePtr keys[M - 1]; // Keys (type is filePtr)
+//	struct btnode *p[M]; // pointers (n + 1) point to children
+//} node;
+//
+//node *root = NULL;
+//
+//typedef enum OpStatus {
+//	Duplicate,
+//	SearchFailure,
+//	Success,
+//	InsertIt,
+//	LessKeys,
+//} OpStatus;
+//
+//
+//int searchPosition(filePtr key, filePtr *arr, int n)
+//{
+//	int pos = 0;
+//	while (pos < n && key->block_id > arr[pos]->block_id)
+//		pos++;
+//	return pos;
+//}
+//
+//void PIDX_Btree_insert(filePtr key)
+//{
+//	node *new_node;
+//}
+//
+//PIDX_return_code PIDX_brick_res_precision_rst_meta_data_BTree_write(PIDX_brick_res_precision_rst_id rst_id)
+//{
+//	return PIDX_success;
+//}
+
+/**********************************************************************/
+
 
 static PIDX_return_code group_meta_data_init(PIDX_io file, int svi, int evi)
 {
