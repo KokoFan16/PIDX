@@ -123,6 +123,8 @@ struct idx_file_struct
   int agg_owned_patch_count; // the number of patch owned by each aggregate
   int* agg_patches_size_array; // All the patch size that owned by each aggregate
   int is_aggregator; // If the rank is a aggregator
+  int comp_mode; // The compression mode
+  float comp_param; // The compression parameter
 
   /********** Time ******************/
   double padding_time;

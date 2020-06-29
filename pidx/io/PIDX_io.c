@@ -154,6 +154,9 @@ PIDX_return_code PIDX_read(PIDX_io file, int svi, int evi, int MODE)
   else if (MODE == PIDX_PARTICLE_IO)
     ret = PIDX_particle_vis_read(file, svi, evi);
 
+  else if (MODE == PIDX_BRICK_RES_PRECISION_IO)
+    ret = PIDX_brick_res_precision_read(file, svi, evi);
+
   if (ret != PIDX_success)
   {
     fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
