@@ -125,6 +125,9 @@ struct idx_file_struct
   int is_aggregator; // If the rank is a aggregator
   int comp_mode; // The compression mode
   float comp_param; // The compression parameter
+  // Read
+  int required_wavelet_level;
+  int required_block_id;
 
   /********** Time ******************/
   double padding_time;

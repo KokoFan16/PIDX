@@ -156,6 +156,23 @@ PIDX_return_code PIDX_brick_res_precision_read(PIDX_io file, int svi, int evi)
     file->idx->variable_tracker[si] = 1;
 
     // Implement read
+
+    // Read Metadata file
+    ret = brick_res_precision_restructure_MetaData(file, PIDX_READ);
+	if (ret != PIDX_success)
+	{
+	  fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
+	  return PIDX_err_file;
+	}
+
+    ret = brick_res_precision_restructure_io(file, PIDX_READ);
+    if (ret != PIDX_success)
+    {
+      fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
+      return PIDX_err_file;
+    }
+
+
   }
 
   return PIDX_success;

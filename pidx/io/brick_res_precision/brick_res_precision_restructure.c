@@ -254,6 +254,16 @@ PIDX_return_code brick_res_precision_restructure_MetaData(PIDX_io file, int mode
 			  return PIDX_err_rst;
 		}
 	}
+
+	if (mode == PIDX_READ)
+	{
+		if (PIDX_brick_res_precision_rst_comp_meta_data_read(file->brick_res_precision_rst_id) != PIDX_success)
+		{
+			  fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
+			  return PIDX_err_rst;
+		}
+	}
+
 	return PIDX_success;
 }
 

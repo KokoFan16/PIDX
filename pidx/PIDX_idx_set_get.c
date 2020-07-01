@@ -505,7 +505,7 @@ PIDX_return_code PIDX_set_max_file_size(PIDX_file file, unsigned long long mfs)
 }
 
 
-/// Add by KE
+/**************************ADD BY KE********************************/
 /// Get parameter required_num_brick
 PIDX_return_code PIDX_set_required_num_brick(PIDX_file file, int required_num_brick)
 {
@@ -516,6 +516,28 @@ PIDX_return_code PIDX_set_required_num_brick(PIDX_file file, int required_num_br
 
     return PIDX_success;
 }
+
+PIDX_return_code PIDX_set_required_wavelet_level(PIDX_file file, int wavelet_level)
+{
+    if (file == NULL)
+      return PIDX_err_file;
+
+    file->idx->required_wavelet_level = wavelet_level;
+
+    return PIDX_success;
+}
+
+PIDX_return_code PIDX_set_required_block_id(PIDX_file file, int block_id)
+{
+    if (file == NULL)
+      return PIDX_err_file;
+
+    file->idx->required_block_id = block_id;
+
+    return PIDX_success;
+}
+
+/**********************************************************/
 
 
 

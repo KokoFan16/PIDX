@@ -478,6 +478,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_meta_data_create(PIDX_brick_res_pr
   return PIDX_success;
 }
 
+/*******************************ADD BY KE *********************************/
+
 PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_write(PIDX_brick_res_precision_rst_id rst_id)
 {
 	// The path directory for metadata files
@@ -536,6 +538,15 @@ PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_write(PIDX_brick_re
 
 	fclose(fp);
 	free(directory_path);
+	return PIDX_success;
+}
+
+
+PIDX_return_code PIDX_brick_res_precision_rst_comp_meta_data_read(PIDX_brick_res_precision_rst_id rst_id)
+{
+	char *directory_path;
+	directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
+	memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
 	return PIDX_success;
 }
 

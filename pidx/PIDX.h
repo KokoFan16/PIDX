@@ -1073,6 +1073,10 @@ PIDX_return_code PIDX_set_max_file_size (PIDX_file file, unsigned long long max_
 /// The required number of bricks per aggregate
 PIDX_return_code PIDX_set_required_num_brick (PIDX_file file, int required_num_brick);
 
+PIDX_return_code PIDX_set_required_wavelet_level(PIDX_file file, int wavelet_level);
+
+PIDX_return_code PIDX_set_required_block_id(PIDX_file file, int block_id);
+
 
 ///
 /// \brief PIDX_values_per_datatype
