@@ -788,6 +788,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
   int patch_count = var0->brick_res_precision_io_restructured_super_patch_count; // local number of bricks
 
+  printf("The number of patches of process %d is %d\n", rank, patch_count);
+
   unsigned long long max_file_size = rst_id->idx->max_file_size;   // Required file size
   int required_num_brick = rst_id->idx->required_num_brick; // Required number of bricks
   int process_count = rst_id->idx_c->simulation_nprocs; // Number of processes
