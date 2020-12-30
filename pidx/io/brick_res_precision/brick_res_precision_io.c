@@ -88,6 +88,7 @@ PIDX_return_code PIDX_brick_res_precision_write(PIDX_io file, int svi, int evi)
     file->idx->variable_tracker[si] = 1;
 
     // Step 1: Setup restructuring buffers
+    file->time->res_start =  MPI_Wtime();
     ret = brick_res_precision_restructure_setup(file, si, ei, PIDX_WRITE);
     if (ret != PIDX_success)
     {
@@ -102,6 +103,7 @@ PIDX_return_code PIDX_brick_res_precision_write(PIDX_io file, int svi, int evi)
       fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
       return PIDX_err_file;
     }
+    file->time->res_end = MPI_Wtime();
 
     // Step 3: Write out restructured data
     ret = brick_res_precision_restructure_io(file, PIDX_WRITE);
@@ -112,13 +114,13 @@ PIDX_return_code PIDX_brick_res_precision_write(PIDX_io file, int svi, int evi)
     }
 
     // write out the metadata files
-    ret = brick_res_precision_restructure_MetaData(file, PIDX_WRITE);
-    if (ret != PIDX_success)
-    {
-      fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
-      return PIDX_err_file;
-    }
-
+//    ret = brick_res_precision_restructure_MetaData(file, PIDX_WRITE);
+//    if (ret != PIDX_success)
+//    {
+//      fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
+//      return PIDX_err_file;
+//    }
+//
     // Step 4: Cleanup all buffers and ids
     ret = brick_res_precision_restructure_cleanup(file);
     if (ret != PIDX_success)

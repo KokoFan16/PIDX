@@ -130,15 +130,9 @@ struct idx_file_struct
   int required_block_id;
 
   /********** Time ******************/
-  double padding_time;
-  double wavelet_time;
-  double zfp_compression_time;
-  double sync_start;
-  double sync_end;
-  double aggregation_start;
-  double aggregation_end;
-  double write_io_start;
-  double write_io_end;
+  double wave_start, wave_end;
+  double zfp_start, zfp_end;
+  double agg_start, agg_end;
 };
 typedef struct idx_file_struct* idx_dataset;
 

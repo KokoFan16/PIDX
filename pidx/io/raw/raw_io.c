@@ -88,12 +88,15 @@ PIDX_return_code PIDX_raw_write(PIDX_io file, int svi, int evi)
     file->idx->variable_tracker[si] = 1;
 
     // Step 1: Setup restructuring buffers
+    double rst_s = MPI_Wtime();
     ret = raw_restructure_setup(file, si, ei, PIDX_WRITE);
     if (ret != PIDX_success)
     {
       fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
       return PIDX_err_file;
     }
+    double rst_e = MPI_Wtime();
+    printf("%d: rst_time %f\n", file->idx_c->simulation_rank, rst_e - rst_s);
 
     // Step 2: Perform data restructuring
     ret = raw_restructure(file, PIDX_WRITE);

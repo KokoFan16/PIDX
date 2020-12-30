@@ -75,7 +75,7 @@ PIDX_return_code brick_res_precision_restructure_setup(PIDX_io file, int svi, in
 
 	/* This function is used to write meta-data files (file_OFFSET, file__SIZE). These two files are
 	* used to store the offset and size of all the bricks for searching. I need to change them.*/
-
+//
 //    if (mode == PIDX_WRITE)
 //    {
 //      if (PIDX_brick_res_precision_rst_meta_data_write(file->brick_res_precision_rst_id) != PIDX_success)

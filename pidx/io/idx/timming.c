@@ -43,6 +43,8 @@
 
 void PIDX_init_timming_buffers1(PIDX_time time, int variable_count, int layout_count)
 {
+	time->res_start = 0;
+	time->res_end = 0;
 
   // Restructuring phase timings
   time->rst_init_start = malloc (sizeof(double) * variable_count);

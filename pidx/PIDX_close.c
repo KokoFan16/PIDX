@@ -96,7 +96,8 @@ PIDX_return_code PIDX_flush(PIDX_file file)
       return PIDX_err_io;
     }
   }
-  // Output to stderr the timmings of all the io phases
+
+//  Output to stderr the timmings of all the io phases
   PIDX_debug_output(file, lvi, (lvi + lvc), file->idx->io_type);
 
   // delete timming buffers
@@ -461,58 +462,17 @@ static void PIDX_debug_output(PIDX_file file, int svi, int evi, int io_type)
   {
 	PIDX_brick_res_precision_rst_id rst_id = file->io->brick_res_precision_rst_id;
 	int rank = file->idx_c->simulation_rank;
-	double create_multi_res_pre_time = time->rst_buff_agg_io_end[0] - time->rst_buff_agg_io_start[0];
-	double sync_time = file->idx->sync_end - file->idx->sync_start;
-	double aggregation_time = file->idx->aggregation_end - file->idx->aggregation_start;
-	double write_io_time = file->idx->write_io_end - file->idx->write_io_start;
-	if (rank == 0)
-	{
-	  if (file->idx->max_file_size > 0)
-	  {
-		fprintf(stderr, "[Fixed File Size: %llu]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d A %d S %llu]\n", file->idx->max_file_size,
-			    file->idx->filename, (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
-		       (int)file->restructured_grid->patch_size[0], (int)file->restructured_grid->patch_size[1], (int)file->restructured_grid->patch_size[2],
-		       file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi), rst_id->total_num_bricks, file->idx->agg_counts, file->idx->total_size);
-	  }
-	  if (file->idx->required_num_brick > 0)
-	  {
-		fprintf(stderr, "[Fixed Bricks Number: %d]: %s [%d %d %d : %d %d %d] [T %d N %d V %d B %d A %d S %llu]\n", file->idx->required_num_brick,
-				file->idx->filename, (int)file->idx->bounds[0], (int)file->idx->bounds[1], (int)file->idx->bounds[2],
-		  	   (int)file->restructured_grid->patch_size[0], (int)file->restructured_grid->patch_size[1], (int)file->restructured_grid->patch_size[2],
-		  	   file->idx->current_time_step, file->idx_c->simulation_nprocs, (evi - svi), rst_id->total_num_bricks, file->idx->agg_counts, file->idx->total_size);
-	  }
-	}
+
+	double rst_time = file->time->res_end - file->time->res_start;
+	double wave_time = rst_id->idx->wave_end - rst_id->idx->wave_start;
+	double comp_time = rst_id->idx->zfp_end - rst_id->idx->zfp_start;
+	double agg_time = rst_id->idx->agg_end - rst_id->idx->agg_start;
+
+//	if (file->idx->is_aggregator == 1)
+	fprintf(stderr,"AGG_%d: = [rst %f wave %f comp %f agg %f]\n", rank, rst_time, wave_time, comp_time, agg_time);
 	if (max_time == total_time)
-	{
-	   fprintf(stderr,"[MAX %d]: [T %f B %d A %d S %llu]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
-			   total_time, file->idx->variable[0]->brick_res_precision_io_restructured_super_patch_count,
-			   file->idx->agg_owned_patch_count, file->idx->agg_size, create_multi_res_pre_time,
-			   file->idx->padding_time, file->idx->wavelet_time, file->idx->zfp_compression_time, sync_time, aggregation_time, write_io_time);
-	}
-	double min_time;
-	MPI_Allreduce(&total_time, &min_time, 1, MPI_DOUBLE, MPI_MIN, file->idx_c->simulation_comm);
+		fprintf(stderr, "MAX_%d: = [rst %f wave %f comp %f agg %f]\n", rank, rst_time, wave_time, comp_time, agg_time);
 
-	if (min_time == total_time)
-	{
-		fprintf(stderr,"[MIN %d]: [T %f B %d A %d S %llu]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
-			  total_time, file->idx->variable[0]->brick_res_precision_io_restructured_super_patch_count,
-			  file->idx->agg_owned_patch_count, file->idx->agg_size, create_multi_res_pre_time,
-			  file->idx->padding_time, file->idx->wavelet_time, file->idx->zfp_compression_time, sync_time, aggregation_time, write_io_time);
-	}
-
-	if (file->idx->is_aggregator == 1)
-	{
-	  fprintf(stderr,"[AGG %d]: [T %f B %d A %d S %llu]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
-	  		  total_time, file->idx->variable[0]->brick_res_precision_io_restructured_super_patch_count,
-	  		  file->idx->agg_owned_patch_count, file->idx->agg_size, create_multi_res_pre_time,
-	  		  file->idx->padding_time, file->idx->wavelet_time, file->idx->zfp_compression_time, sync_time, aggregation_time, write_io_time);
-	}
-	else
-	{
-	  fprintf(stderr,"[NOR %d]: [T %f B %d]\n[%f = [Pad %f Wave %f Comp %f Sync %f Agg %f IO %f]]\n", rank,
-		      total_time, file->idx->variable[0]->brick_res_precision_io_restructured_super_patch_count, create_multi_res_pre_time,
-			  file->idx->padding_time, file->idx->wavelet_time, file->idx->zfp_compression_time, sync_time, aggregation_time, write_io_time);
-	}
   }
   else
   {

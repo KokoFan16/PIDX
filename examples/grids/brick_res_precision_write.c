@@ -144,10 +144,10 @@ int main(int argc, char **argv)
   calculate_per_process_offsets();
 
   // Read file in parallel
-  read_file_parallel();
+//  read_file_parallel();
 
 //  // Generate synthetic data
-//  create_synthetic_simulation_data();
+  create_synthetic_simulation_data();
 
   // Create variables
   create_pidx_point_and_access();
@@ -311,7 +311,7 @@ MPI_Datatype create_subarray()
 {
 //	printf("%d %d %d\n", global_box_size[0], global_box_size[1], global_box_size[2]);
     MPI_Datatype subarray;
-    MPI_Type_create_subarray(3, global_box_size, local_box_size, local_box_offset, MPI_ORDER_C, MPI_FLOAT, &subarray);
+    MPI_Type_create_subarray(3, global_box_size, local_box_size, local_box_offset, MPI_ORDER_FORTRAN, MPI_FLOAT, &subarray);
     MPI_Type_commit(&subarray);
     return subarray;
 }

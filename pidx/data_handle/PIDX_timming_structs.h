@@ -49,6 +49,8 @@ struct PIDX_timming_struct
   double SX, EX;
   double sim_start, sim_end;
 
+  double res_start, res_end;
+
   double init_start, init_end;
   double set_reg_box_start, set_reg_box_end;
   double bit_string_start, bit_string_end;
