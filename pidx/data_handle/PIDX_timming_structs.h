@@ -50,6 +50,9 @@ struct PIDX_timming_struct
   double sim_start, sim_end;
 
   double res_start, res_end;
+  double wave_start, wave_end;
+  double zfp_start, zfp_end;
+  double aggre_start, aggre_end;
 
   double init_start, init_end;
   double set_reg_box_start, set_reg_box_end;

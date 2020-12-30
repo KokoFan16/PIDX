@@ -229,7 +229,7 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_read_and_aggregate(PIDX_brick_
 /// \param rst_id
 /// \return
 ///
-PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id);
+PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id, PIDX_time time);
 
 
 

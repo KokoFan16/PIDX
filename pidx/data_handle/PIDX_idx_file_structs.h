@@ -129,10 +129,6 @@ struct idx_file_struct
   int required_wavelet_level;
   int required_block_id;
 
-  /********** Time ******************/
-  double wave_start, wave_end;
-  double zfp_start, zfp_end;
-  double agg_start, agg_end;
 };
 typedef struct idx_file_struct* idx_dataset;
 

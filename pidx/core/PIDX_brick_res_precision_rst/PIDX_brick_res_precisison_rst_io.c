@@ -761,29 +761,29 @@ PIDX_return_code PIDX_zfp_compression_perform(PIDX_brick_res_precision_rst_id rs
 }
 
 
-PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id)
+PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_res_precision_rst_id rst_id, PIDX_time time)
 {
-	rst_id->idx->wave_start = MPI_Wtime();
+	time->wave_start= MPI_Wtime();
 	if (PIDX_wavelet_perform(rst_id) != PIDX_success)
 	{
         fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
         return PIDX_err_rst;
 	}
-	rst_id->idx->wave_end = MPI_Wtime();
+	time->wave_end = MPI_Wtime();
 
 	int max_patch_size = 0;
 	int rank = rst_id->idx_c->simulation_rank; // The rank of processes
 	unsigned long long process_comp_size = 0;   // The total size of a process after compression
 
-	rst_id->idx->zfp_start = MPI_Wtime();
+	time->zfp_start = MPI_Wtime();
 	if (PIDX_zfp_compression_perform(rst_id, &process_comp_size, &max_patch_size) != PIDX_success)
 	{
         fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
         return PIDX_err_rst;
 	}
-	rst_id->idx->zfp_end = MPI_Wtime();
+	time->zfp_end = MPI_Wtime();
 
-	rst_id->idx->agg_start = MPI_Wtime();
+	time->aggre_start = MPI_Wtime();
 	/*********************** Aggregation **********************/
   PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
   int patch_count = var0->brick_res_precision_io_restructured_super_patch_count; // local number of bricks
@@ -1028,7 +1028,8 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
   rst_id->idx->agg_patch_array = (int*) realloc(rst_id->idx->agg_patch_array, owned_patch_count * sizeof(int));
   rst_id->idx->agg_owned_patch_count = owned_patch_count;
 
-  rst_id->idx->agg_end = MPI_Wtime();
+  time->aggre_end = MPI_Wtime();
+
 
   /*********************** Write data out **********************/
   char *directory_path;

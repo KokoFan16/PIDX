@@ -100,12 +100,12 @@ PIDX_return_code PIDX_flush(PIDX_file file)
 //  Output to stderr the timmings of all the io phases
   PIDX_debug_output(file, lvi, (lvi + lvc), file->idx->io_type);
 
-  // delete timming buffers
+//   delete timming buffers
   PIDX_delete_timming_buffers1(time, file->idx->variable_count);
 
 
   // finalize step
-  PIDX_io_finalize(file->io);
+//  PIDX_io_finalize(file->io);
 
 
   // freeing buffers
@@ -460,18 +460,20 @@ static void PIDX_debug_output(PIDX_file file, int svi, int evi, int io_type)
   }
   else if (io_type == PIDX_BRICK_RES_PRECISION_IO)
   {
-	PIDX_brick_res_precision_rst_id rst_id = file->io->brick_res_precision_rst_id;
+//	PIDX_brick_res_precision_rst_id rst_id = file->io->brick_res_precision_rst_id;
 	int rank = file->idx_c->simulation_rank;
-
 	double rst_time = file->time->res_end - file->time->res_start;
-	double wave_time = rst_id->idx->wave_end - rst_id->idx->wave_start;
-	double comp_time = rst_id->idx->zfp_end - rst_id->idx->zfp_start;
-	double agg_time = rst_id->idx->agg_end - rst_id->idx->agg_start;
+	double wave_time = file->time->wave_end - file->time->wave_start;
+	double zfp_time = file->time->zfp_end - file->time->zfp_start;
+	double agg_time = file->time->aggre_end - file->time->aggre_start;
 
-//	if (file->idx->is_aggregator == 1)
-	fprintf(stderr,"AGG_%d: = [rst %f wave %f comp %f agg %f]\n", rank, rst_time, wave_time, comp_time, agg_time);
+	if (file->idx->is_aggregator == 1)
+		fprintf(stderr,"AGG_%d: = [rst %f wave %f comp %f agg %f]\n", rank, rst_time, wave_time, zfp_time, agg_time);
+	else
+		fprintf(stderr,"NOR_%d: = [rst %f wave %f comp %f agg %f]\n", rank, rst_time, wave_time, zfp_time, agg_time);
+
 	if (max_time == total_time)
-		fprintf(stderr, "MAX_%d: = [rst %f wave %f comp %f agg %f]\n", rank, rst_time, wave_time, comp_time, agg_time);
+		fprintf(stderr, "MAX_%d: = [rst %f wave %f comp %f agg %f]\n", rank, rst_time, wave_time, zfp_time, agg_time);
 
   }
   else

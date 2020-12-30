@@ -159,13 +159,6 @@ PIDX_return_code PIDX_file_create(const char* filename, PIDX_flags flags, PIDX_a
   (*file)->idx->restructuring_factor[1] = 1;
   (*file)->idx->restructuring_factor[2] = 1;
 
-  (*file)->idx->wave_start = 0;
-  (*file)->idx->wave_end = 0;
-  (*file)->idx->zfp_start = 0;
-  (*file)->idx->zfp_end = 0;
-  (*file)->idx->agg_start = 0;
-  (*file)->idx->agg_end = 0;
-
   (*file)->idx->compression_type = PIDX_NO_COMPRESSION;
 
   strncpy(file_name_skeleton, filename, strlen(filename) - 4);

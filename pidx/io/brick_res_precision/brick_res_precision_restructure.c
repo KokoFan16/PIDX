@@ -214,7 +214,7 @@ PIDX_return_code brick_res_precision_restructure_io(PIDX_io file, int mode)
     {
       // Write out restructured data
       time->rst_buff_agg_io_start[cvi] = PIDX_get_time();
-      if (PIDX_brick_res_precision_rst_buf_aggregated_write(file->brick_res_precision_rst_id) != PIDX_success)
+      if (PIDX_brick_res_precision_rst_buf_aggregated_write(file->brick_res_precision_rst_id, time) != PIDX_success)
       {
         fprintf(stderr,"File %s Line %d\n", __FILE__, __LINE__);
         return PIDX_err_rst;
