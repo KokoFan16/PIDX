@@ -696,6 +696,10 @@ PIDX_return_code PIDX_wavelet_perform(PIDX_brick_res_precision_rst_id rst_id)
 
 PIDX_return_code PIDX_zfp_compression_perform(PIDX_brick_res_precision_rst_id rst_id, unsigned long long* process_comp_size, int* max_patch_size)
 {
+	// ZFP compression parameters
+	rst_id->idx->comp_mode = 0;// The compression mode
+	rst_id->idx->comp_param = 0; // The compression parameter
+
 	PIDX_variable var0 = rst_id->idx->variable[rst_id->first_index]; // first variable
 	int patch_count = var0->brick_res_precision_io_restructured_super_patch_count; // local number of bricks
 
@@ -707,10 +711,6 @@ PIDX_return_code PIDX_zfp_compression_perform(PIDX_brick_res_precision_rst_id rs
 	uint64_t patch_z = rst_id->restructured_grid->patch_size[2];
 
 	uint64_t patch_size[3] = {patch_x, patch_y, patch_z};
-
-	// ZFP compression parameters
-	rst_id->idx->comp_mode = 1;// The compression mode
-	rst_id->idx->comp_param = 16; // The compression parameter
 
 	rst_id->idx->procs_comp_buffer = (unsigned char*) malloc(patch_x * patch_y * patch_z * patch_count * 64);
 
