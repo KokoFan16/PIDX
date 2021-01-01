@@ -663,15 +663,14 @@ PIDX_return_code PIDX_wavelet_perform(PIDX_brick_res_precision_rst_id rst_id)
 			int wavelet_level = max_wavelet_level;
 			out_patch->wavelet_level = wavelet_level; // Store this parameter into PIDX_patch structure
 
-			unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
 			uint64_t buffer_size = out_patch->size[0] * out_patch->size[1] * out_patch->size[2];
-			uint64_t size = rst_id->restructured_grid->patch_size[0] * rst_id->restructured_grid->patch_size[1] * rst_id->restructured_grid->patch_size[2];
+			uint64_t size = patch_x * patch_y * patch_z;
 			unsigned char* res_buf = NULL;
 
 			 // If the patch size is less than the brick size (e.g., 32x24x32), this patch should be padding with 0 to be 32x32x32.
 			if (buffer_size < size)
 			{
-				res_buf = calloc(size * bits, sizeof(unsigned char));
+				res_buf = malloc(size * bits);
 				int index1 = 0; int index2 = 0;
 				for (int i = 0; i < out_patch->size[2]; i++)
 				{
@@ -679,14 +678,15 @@ PIDX_return_code PIDX_wavelet_perform(PIDX_brick_res_precision_rst_id rst_id)
 					{
 						index1 = i * out_patch->size[1] * out_patch->size[0] + j * out_patch->size[0];
 						index2 = i * patch_y * patch_x + j * patch_x;
-						memcpy(&res_buf[index2 * bits], &buf[index1 * bits], out_patch->size[0] * bits);
+						memcpy(&res_buf[index2 * bits], &out_patch->buffer[index1 * bits], out_patch->size[0] * bits);
 					}
 				}
-				memcpy(buf, res_buf, size * bits);
+				out_patch->buffer = realloc(out_patch->buffer, size * bits);
+				memcpy(out_patch->buffer, res_buf, size * bits);
 			}
 			free(res_buf);
 
-			PIDX_wavelet_transform(buf, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
+			PIDX_wavelet_transform(out_patch->buffer, patch_x, patch_y, patch_z, bits, var->type_name, wavelet_level);
 		}
 	}
 	return PIDX_success;
@@ -732,7 +732,6 @@ PIDX_return_code PIDX_zfp_compression_perform(PIDX_brick_res_precision_rst_id rs
 			PIDX_variable var = rst_id->idx->variable[v_start];
 			bits = (var->bpv/8) * var->vps;
 
-			unsigned char* buf = var_start->brick_res_precision_io_restructured_super_patch[g]->restructured_patch->buffer;
 			uint64_t size = rst_id->restructured_grid->patch_size[0] * rst_id->restructured_grid->patch_size[1] * rst_id->restructured_grid->patch_size[2];
 
 		    uint64_t dc_dimension[3];
@@ -741,7 +740,7 @@ PIDX_return_code PIDX_zfp_compression_perform(PIDX_brick_res_precision_rst_id rs
 
 		    // Wavelet compression
 		    out_patch->compressed_buffer = (unsigned char*) malloc(size * bits * sizeof(unsigned char));
-		    PIDX_wavelet_compression(out_patch->compressed_buffer, buf, bits, dc_size, patch_size, var->type_name, out_patch, rst_id->idx->comp_mode, rst_id->idx->comp_param);
+		    PIDX_wavelet_compression(out_patch->compressed_buffer, out_patch->buffer, bits, dc_size, patch_size, var->type_name, out_patch, rst_id->idx->comp_mode, rst_id->idx->comp_param);
 		    out_patch->compressed_buffer = (unsigned char*) realloc(out_patch->compressed_buffer, out_patch->total_compress_size);
 		    // copy all the brick buffers to one big buffer per process
 		    memcpy(&rst_id->idx->procs_comp_buffer[(*process_comp_size)], out_patch->compressed_buffer, out_patch->total_compress_size);
