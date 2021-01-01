@@ -144,10 +144,10 @@ int main(int argc, char **argv)
   calculate_per_process_offsets();
 
   // Read file in parallel
-//  read_file_parallel();
+  read_file_parallel();
 
 //  // Generate synthetic data
-  create_synthetic_simulation_data();
+//  create_synthetic_simulation_data();
 
   // Create variables
   create_pidx_point_and_access();
