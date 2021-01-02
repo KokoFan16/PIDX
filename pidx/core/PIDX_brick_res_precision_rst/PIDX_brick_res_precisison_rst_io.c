@@ -379,16 +379,6 @@ struct PIDX_zfp_compress_pointer PIDX_compress_3D_float(unsigned char* buf, int 
 	  type = zfp_type_float;
   else if (data_type == 1)
 	  type = zfp_type_double;
-//  if (strcmp(type_name, PIDX_DType.INT32) == 0 || strcmp(type_name, PIDX_DType.INT32_GA) == 0 || strcmp(type_name, PIDX_DType.INT32_RGB) == 0)
-//	type = zfp_type_int32;
-//  else if (strcmp(type_name, PIDX_DType.FLOAT32) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT32_RGB) == 0)
-//	type = zfp_type_float;
-//  else if (strcmp(type_name, PIDX_DType.INT64) == 0 || strcmp(type_name, PIDX_DType.INT64_GA) == 0 || strcmp(type_name, PIDX_DType.INT64_RGB) == 0)
-//	type = zfp_type_int64;
-//  else if (strcmp(type_name, PIDX_DType.FLOAT64) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_GA) == 0 || strcmp(type_name, PIDX_DType.FLOAT64_RGB) == 0)
-//	type = zfp_type_double;
-//  else
-//	printf("ERROR: ZFP cannot handle type %s\n", type_name);
 
   zfp_field* field = zfp_field_3d(buf, type, dim_x, dim_y, dim_z);
   zfp_stream* zfp = zfp_stream_open(NULL);
@@ -998,34 +988,34 @@ PIDX_return_code PIDX_brick_res_precision_rst_buf_aggregated_write(PIDX_brick_re
 
 
   /*********************** Write data out **********************/
-  char *directory_path;
-  directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
-  memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
-  strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
-
-  // write out files
-  if (agg_cur_size > 0)
-  {
-	char *file_name;
-	file_name = malloc(PATH_MAX * sizeof(*file_name));
-	memset(file_name, 0, PATH_MAX * sizeof(*file_name));
-
-	sprintf(file_name, "%s/time%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
-	int fp = open(file_name, O_CREAT | O_WRONLY, 0664);
-
-	uint64_t buffer_size =  agg_cur_size;
-	uint64_t write_count = pwrite(fp, aggregate_buffer, buffer_size, 0);
-	if (write_count != buffer_size)
-	{
-	  fprintf(stderr, "[%s] [%d] pwrite() failed.\n", __FILE__, __LINE__);
-	  return PIDX_err_io;
-	}
-	close(fp);
-	free(file_name);
-  }
+//  char *directory_path;
+//  directory_path = malloc(sizeof(*directory_path) * PATH_MAX);
+//  memset(directory_path, 0, sizeof(*directory_path) * PATH_MAX);
+//  strncpy(directory_path, rst_id->idx->filename, strlen(rst_id->idx->filename) - 4);
+//
+//  // write out files
+//  if (agg_cur_size > 0)
+//  {
+//	char *file_name;
+//	file_name = malloc(PATH_MAX * sizeof(*file_name));
+//	memset(file_name, 0, PATH_MAX * sizeof(*file_name));
+//
+//	sprintf(file_name, "%s/time%09d/%d", directory_path, rst_id->idx->current_time_step, rank);
+//	int fp = open(file_name, O_CREAT | O_WRONLY, 0664);
+//
+//	uint64_t buffer_size =  agg_cur_size;
+//	uint64_t write_count = pwrite(fp, aggregate_buffer, buffer_size, 0);
+//	if (write_count != buffer_size)
+//	{
+//	  fprintf(stderr, "[%s] [%d] pwrite() failed.\n", __FILE__, __LINE__);
+//	  return PIDX_err_io;
+//	}
+//	close(fp);
+//	free(file_name);
+//  }
 
   free(aggregate_buffer);
-  free(directory_path);
+//  free(directory_path);
   /***********************************************************/
 
   return PIDX_success;
